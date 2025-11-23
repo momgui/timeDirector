@@ -28,14 +28,7 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Decode Keystore
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
-        # Note: We create the directory just in case prebuild hasn't run yet, 
-        # but prebuild will run next. Actually, prebuild creates android/app.
-        # So we should run prebuild FIRST, then decode keystore.
+
 
       - name: Prebuild (Generate Native Code)
         run: npx expo prebuild --platform android --no-install
