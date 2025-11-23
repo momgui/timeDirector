@@ -21,7 +21,7 @@ export const generateSteps = async (goalTitle: string, deadline: Date): Promise<
       Return ONLY a JSON array of objects with fields: "title", "description", "date" (YYYY-MM-DD).
     `;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -35,7 +35,19 @@ export const generateSteps = async (goalTitle: string, deadline: Date): Promise<
             })
         });
 
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error('AI API Error:', errorData);
+            throw new Error(`AI API request failed with status ${response.status}`);
+        }
+
         const data = await response.json();
+
+        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+            console.error('Invalid AI response format:', data);
+            throw new Error('Invalid AI response format');
+        }
+
         const text = data.candidates[0].content.parts[0].text;
         // Basic parsing, might need more robustness
         const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();

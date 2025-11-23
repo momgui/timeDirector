@@ -1,77 +1,102 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Button, ActivityIndicator } from 'react-native';
-import { GoogleSigninButton } from '@react-native-google-signin/google-signin';
-import { signIn, configureGoogleSignIn, getCurrentUser } from '../services/auth';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import React, { useState } from 'react';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { Layout } from '../design-system/components/Layout';
+import { Typography } from '../design-system/components/Typography';
+import { Input } from '../design-system/components/Input';
+import { Button } from '../design-system/components/Button';
+import { Card } from '../design-system/components/Card';
+import { COLORS, SPACING } from '../design-system/tokens';
+import { useNavigation } from '@react-navigation/native';
 
-type LoginScreenProps = {
-    navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
-};
+export default function LoginScreen() {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const navigation = useNavigation();
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
-    const [loading, setLoading] = React.useState(false);
-
-    useEffect(() => {
-        configureGoogleSignIn();
-        checkUser();
-    }, []);
-
-    const checkUser = async () => {
-        const user = await getCurrentUser();
-        if (user) {
-            navigation.replace('Dashboard');
-        }
-    };
-
-    const handleSignIn = async () => {
+    const handleLogin = async () => {
         setLoading(true);
-        const user = await signIn();
-        setLoading(false);
-        if (user) {
-            navigation.replace('Dashboard');
-        }
+        // Simulate API call
+        setTimeout(() => {
+            setLoading(false);
+            navigation.navigate('Dashboard' as never);
+        }, 1500);
     };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>TimeDirector</Text>
-            <Text style={styles.subtitle}>Achieve your goals with AI-powered planning</Text>
+        <Layout>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={styles.keyboardView}
+                >
+                    <View style={styles.header}>
+                        <Typography variant="hero" color={COLORS.primary} align="center" style={styles.title}>
+                            TimeDirector
+                        </Typography>
+                        <Typography variant="body" color={COLORS.textSecondary} align="center">
+                            Master your time, master your life.
+                        </Typography>
+                    </View>
 
-            {loading ? (
-                <ActivityIndicator size="large" color="#0000ff" />
-            ) : (
-                <GoogleSigninButton
-                    style={{ width: 192, height: 48, marginTop: 20 }}
-                    size={GoogleSigninButton.Size.Wide}
-                    color={GoogleSigninButton.Color.Dark}
-                    onPress={handleSignIn}
-                />
-            )}
-        </View>
+                    <Card variant="glass" padding="xl" style={styles.formCard}>
+                        <Input
+                            label="Email"
+                            placeholder="you@example.com"
+                            value={email}
+                            onChangeText={setEmail}
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                        />
+                        <Input
+                            label="Password"
+                            placeholder="••••••••"
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry
+                        />
+
+                        <View style={styles.actions}>
+                            <Button
+                                title="Sign In"
+                                onPress={handleLogin}
+                                loading={loading}
+                                fullWidth
+                            />
+                            <Button
+                                title="Create Account"
+                                variant="ghost"
+                                onPress={() => { }}
+                                style={styles.secondaryButton}
+                                fullWidth
+                            />
+                        </View>
+                    </Card>
+                </KeyboardAvoidingView>
+            </TouchableWithoutFeedback>
+        </Layout>
     );
-};
+}
 
 const styles = StyleSheet.create({
-    container: {
+    keyboardView: {
         flex: 1,
         justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        padding: 20,
+    },
+    header: {
+        marginBottom: SPACING.xxl,
     },
     title: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        marginBottom: 10,
-        color: '#333',
+        marginBottom: SPACING.s,
     },
-    subtitle: {
-        fontSize: 16,
-        color: '#666',
-        marginBottom: 40,
-        textAlign: 'center',
+    formCard: {
+        width: '100%',
+    },
+    actions: {
+        marginTop: SPACING.l,
+        gap: SPACING.m,
+    },
+    secondaryButton: {
+        marginTop: SPACING.s,
     },
 });
-
-export default LoginScreen;

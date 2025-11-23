@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
@@ -7,6 +7,11 @@ import { generateSteps } from '../services/ai';
 import { saveGoal, saveSteps } from '../services/storage';
 import { v4 as uuidv4 } from 'uuid';
 import 'react-native-get-random-values';
+import { Layout } from '../design-system/components/Layout';
+import { Typography } from '../design-system/components/Typography';
+import { Input } from '../design-system/components/Input';
+import { Button } from '../design-system/components/Button';
+import { COLORS, SPACING } from '../design-system/tokens';
 
 type GoalInputScreenProps = {
     navigation: NativeStackNavigationProp<RootStackParamList, 'GoalInput'>;
@@ -28,7 +33,6 @@ const GoalInputScreen: React.FC<GoalInputScreenProps> = ({ navigation }) => {
         if (!goal) return;
         setLoading(true);
         try {
-            // Call AI service to generate steps
             const steps = await generateSteps(goal, date);
 
             const newGoal = {
@@ -39,13 +43,11 @@ const GoalInputScreen: React.FC<GoalInputScreenProps> = ({ navigation }) => {
                 isCompleted: false,
             };
 
-            // Assign goalId to steps
             const stepsWithGoalId = steps.map((s: any) => ({ ...s, goalId: newGoal.id }));
 
             await saveGoal(newGoal);
             await saveSteps(stepsWithGoalId);
 
-            console.log('Generated steps:', stepsWithGoalId);
             navigation.navigate('Dashboard');
         } catch (error) {
             console.error(error);
@@ -55,56 +57,92 @@ const GoalInputScreen: React.FC<GoalInputScreenProps> = ({ navigation }) => {
     };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.label}>What is your goal?</Text>
-            <TextInput
-                style={styles.input}
-                placeholder="e.g. Learn React Native"
-                value={goal}
-                onChangeText={setGoal}
-            />
+        <Layout>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.keyboardView}
+            >
+                <ScrollView contentContainerStyle={styles.content}>
+                    <Typography variant="h1" color={COLORS.primary} style={styles.title}>
+                        What is your vision?
+                    </Typography>
 
-            <Text style={styles.label}>When do you want to achieve it?</Text>
-            <Button onPress={() => setShowDatePicker(true)} title={date.toLocaleDateString()} />
+                    <Input
+                        placeholder="e.g. Run a marathon..."
+                        value={goal}
+                        onChangeText={setGoal}
+                        multiline
+                        autoFocus
+                        style={styles.input}
+                    />
 
-            {showDatePicker && (
-                <DateTimePicker
-                    value={date}
-                    mode="date"
-                    display="default"
-                    onChange={handleDateChange}
-                    minimumDate={new Date()}
-                />
-            )}
+                    <View style={styles.dateContainer}>
+                        <Typography variant="caption" color={COLORS.textSecondary} style={styles.label}>
+                            DEADLINE
+                        </Typography>
+                        <Button
+                            title={date.toLocaleDateString()}
+                            variant="secondary"
+                            onPress={() => setShowDatePicker(true)}
+                            style={styles.dateButton}
+                        />
+                    </View>
 
-            <View style={styles.buttonContainer}>
-                <Button title={loading ? "Generating Plan..." : "Create Plan"} onPress={handleSubmit} disabled={loading} />
-            </View>
-        </View>
+                    {showDatePicker && (
+                        <DateTimePicker
+                            value={date}
+                            mode="date"
+                            display="default"
+                            onChange={handleDateChange}
+                            minimumDate={new Date()}
+                            themeVariant="dark"
+                        />
+                    )}
+
+                    <Button
+                        title="Generate Plan"
+                        onPress={handleSubmit}
+                        loading={loading}
+                        disabled={!goal || loading}
+                        fullWidth
+                        style={styles.submitButton}
+                    />
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </Layout>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
+    keyboardView: {
         flex: 1,
-        padding: 20,
-        backgroundColor: '#fff',
     },
-    label: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginTop: 20,
-        marginBottom: 10,
+    content: {
+        flexGrow: 1,
+        justifyContent: 'center',
+        paddingVertical: SPACING.xl,
+    },
+    title: {
+        marginBottom: SPACING.l,
     },
     input: {
-        borderWidth: 1,
-        borderColor: '#ccc',
-        padding: 10,
-        borderRadius: 5,
-        fontSize: 16,
+        marginBottom: SPACING.xl,
+        minHeight: 100,
+        textAlignVertical: 'top',
+        fontSize: 24,
     },
-    buttonContainer: {
-        marginTop: 40,
+    dateContainer: {
+        marginBottom: SPACING.xxl,
+    },
+    label: {
+        marginBottom: SPACING.s,
+        letterSpacing: 1,
+    },
+    dateButton: {
+        alignSelf: 'flex-start',
+    },
+    submitButton: {
+        marginTop: 'auto',
     },
 });
 

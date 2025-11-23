@@ -55,3 +55,40 @@ export const updateStep = async (updatedStep: Step) => {
         console.error('Error updating step:', error);
     }
 };
+
+export const deleteGoal = async (goalId: string) => {
+    try {
+        const storedGoals = await getGoals();
+        const updatedGoals = storedGoals.filter(g => g.id !== goalId);
+        await AsyncStorage.setItem(GOALS_KEY, JSON.stringify(updatedGoals));
+
+        // Cascade delete steps
+        const storedSteps = await getSteps();
+        const updatedSteps = storedSteps.filter(s => s.goalId !== goalId);
+        await AsyncStorage.setItem(STEPS_KEY, JSON.stringify(updatedSteps));
+    } catch (error) {
+        console.error('Error deleting goal:', error);
+    }
+};
+
+export const updateGoal = async (updatedGoal: Goal) => {
+    try {
+        const storedGoals = await getGoals();
+        const newGoals = storedGoals.map(goal =>
+            goal.id === updatedGoal.id ? updatedGoal : goal
+        );
+        await AsyncStorage.setItem(GOALS_KEY, JSON.stringify(newGoals));
+    } catch (error) {
+        console.error('Error updating goal:', error);
+    }
+};
+
+export const deleteStep = async (stepId: string) => {
+    try {
+        const storedSteps = await getSteps();
+        const updatedSteps = storedSteps.filter(s => s.id !== stepId);
+        await AsyncStorage.setItem(STEPS_KEY, JSON.stringify(updatedSteps));
+    } catch (error) {
+        console.error('Error deleting step:', error);
+    }
+};

@@ -13,8 +13,8 @@ const AppNavigator = () => {
         <NavigationContainer>
             <Stack.Navigator initialRouteName="Login">
                 <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-                <Stack.Screen name="Dashboard" component={DashboardScreen} />
-                <Stack.Screen name="GoalInput" component={GoalInputScreen} options={{ title: 'New Goal' }} />
+                <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
+                <Stack.Screen name="GoalInput" component={GoalInputScreen} options={{ headerShown: false }} />
             </Stack.Navigator>
         </NavigationContainer>
     );
