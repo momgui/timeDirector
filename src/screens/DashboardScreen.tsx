@@ -14,6 +14,7 @@ import { ProgressBar } from '../design-system/components/ProgressBar';
 import { Checkbox } from '../design-system/components/Checkbox';
 import { EmptyState } from '../design-system/components/EmptyState';
 import { FadeIn } from '../design-system/components/FadeIn';
+import { WeeklyCalendar } from '../components/WeeklyCalendar';
 import { COLORS, SPACING } from '../design-system/tokens';
 
 if (Platform.OS === 'android') {
@@ -34,6 +35,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     const [selectionType, setSelectionType] = useState<'GOAL' | 'STEP' | null>(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [rescheduleDate, setRescheduleDate] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(new Date());
     const isFocused = useIsFocused();
 
     useEffect(() => {
@@ -260,6 +262,12 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 />
             </View>
 
+            <WeeklyCalendar
+                selectedDate={selectedDate}
+                onDateSelect={setSelectedDate}
+                steps={steps}
+            />
+
             <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
                 <Typography variant="caption" weight="bold" color={COLORS.textSecondary} style={styles.sectionTitle}>
                     ACTIVE GOALS
@@ -281,18 +289,28 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 )}
 
                 <Typography variant="caption" weight="bold" color={COLORS.textSecondary} style={styles.sectionTitle}>
-                    TODAY'S FOCUS
+                    {selectedDate.toDateString() === new Date().toDateString() ? "TODAY'S FOCUS" : `TASKS FOR ${selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }).toUpperCase()}`}
                 </Typography>
 
-                {steps.length === 0 && goals.length > 0 ? (
+                {steps.filter(s => {
+                    const sDate = new Date(s.date);
+                    return sDate.getDate() === selectedDate.getDate() &&
+                        sDate.getMonth() === selectedDate.getMonth() &&
+                        sDate.getFullYear() === selectedDate.getFullYear();
+                }).length === 0 ? (
                     <EmptyState
-                        title="No tasks for today"
-                        description="You're all caught up!"
+                        title="No tasks for this day"
+                        description="Enjoy your free time!"
                         style={{ marginTop: SPACING.m }}
                     />
                 ) : (
                     <FlatList
-                        data={steps.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())}
+                        data={steps.filter(s => {
+                            const sDate = new Date(s.date);
+                            return sDate.getDate() === selectedDate.getDate() &&
+                                sDate.getMonth() === selectedDate.getMonth() &&
+                                sDate.getFullYear() === selectedDate.getFullYear();
+                        }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())}
                         keyExtractor={item => item.id}
                         renderItem={renderStep}
                         scrollEnabled={false}

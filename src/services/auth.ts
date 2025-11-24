@@ -35,6 +35,7 @@ export const signIn = async () => {
 export const signOut = async () => {
     try {
         await GoogleSignin.signOut();
+        await clearLoginState();
     } catch (error) {
         console.error(error);
     }
@@ -43,4 +44,34 @@ export const signOut = async () => {
 export const getCurrentUser = async () => {
     const currentUser = await GoogleSignin.getCurrentUser();
     return currentUser;
+};
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const LOGIN_STATE_KEY = 'is_logged_in';
+
+export const saveLoginState = async () => {
+    try {
+        await AsyncStorage.setItem(LOGIN_STATE_KEY, 'true');
+    } catch (error) {
+        console.error('Error saving login state:', error);
+    }
+};
+
+export const getLoginState = async (): Promise<boolean> => {
+    try {
+        const value = await AsyncStorage.getItem(LOGIN_STATE_KEY);
+        return value === 'true';
+    } catch (error) {
+        console.error('Error getting login state:', error);
+        return false;
+    }
+};
+
+export const clearLoginState = async () => {
+    try {
+        await AsyncStorage.removeItem(LOGIN_STATE_KEY);
+    } catch (error) {
+        console.error('Error clearing login state:', error);
+    }
 };

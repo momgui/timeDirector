@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Layout } from '../design-system/components/Layout';
+import { saveLoginState } from '../services/auth';
 import { Typography } from '../design-system/components/Typography';
 import { Input } from '../design-system/components/Input';
 import { Button } from '../design-system/components/Button';
@@ -17,7 +18,8 @@ export default function LoginScreen() {
     const handleLogin = async () => {
         setLoading(true);
         // Simulate API call
-        setTimeout(() => {
+        setTimeout(async () => {
+            await saveLoginState();
             setLoading(false);
             navigation.navigate('Dashboard' as never);
         }, 1500);
