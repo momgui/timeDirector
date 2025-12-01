@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TextProps, StyleSheet, TextStyle } from 'react-native';
+import { Text, TextProps, StyleSheet, TextStyle, StyleProp } from 'react-native';
 import { COLORS, FONTS } from '../tokens';
 
 interface TypographyProps extends TextProps {
@@ -7,7 +7,7 @@ interface TypographyProps extends TextProps {
     color?: string;
     weight?: keyof typeof FONTS.weights;
     align?: TextStyle['textAlign'];
-    style?: TextStyle;
+    style?: StyleProp<TextStyle>;
 }
 
 export const Typography: React.FC<TypographyProps> = ({
@@ -36,23 +36,22 @@ export const Typography: React.FC<TypographyProps> = ({
         }
     };
 
-    const textStyle: TextStyle = {
+    const baseStyle: TextStyle = {
         color,
         textAlign: align,
         fontWeight: weight ? (FONTS.weights[weight] as TextStyle['fontWeight']) : undefined,
         ...getVariantStyle(),
-        ...style,
     };
 
     // Override fontWeight if variant has specific needs but allow prop override
     if (!weight) {
         if (variant === 'hero' || variant === 'h1' || variant === 'h2') {
-            textStyle.fontWeight = FONTS.weights.semibold as any;
+            baseStyle.fontWeight = FONTS.weights.medium as any;
         }
     }
 
     return (
-        <Text style={textStyle} {...props}>
+        <Text style={[baseStyle, style]} {...props}>
             {children}
         </Text>
     );

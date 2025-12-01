@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Goal, Step } from '../types';
+import { Goal, Step, WeeklySchedule } from '../types';
 
 const GOALS_KEY = 'goals';
 const STEPS_KEY = 'steps';
+const AVAILABILITY_KEY = 'availability';
 
 export const saveGoal = async (goal: Goal) => {
     try {
@@ -90,5 +91,48 @@ export const deleteStep = async (stepId: string) => {
         await AsyncStorage.setItem(STEPS_KEY, JSON.stringify(updatedSteps));
     } catch (error) {
         console.error('Error deleting step:', error);
+    }
+};
+
+export const saveAvailability = async (schedule: WeeklySchedule) => {
+    try {
+        await AsyncStorage.setItem(AVAILABILITY_KEY, JSON.stringify(schedule));
+    } catch (error) {
+        console.error('Error saving availability:', error);
+    }
+};
+
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+const DEFAULT_SCHEDULE: WeeklySchedule = DAYS.reduce((acc, day) => {
+    acc[day] = {
+        isWorkDay: true,
+        slots: [
+            { start: '09:00', end: '24:00', category: 'ANYTHING' }
+        ]
+    };
+    return acc;
+}, {} as WeeklySchedule);
+
+export const getAvailability = async (): Promise<WeeklySchedule> => {
+    try {
+        const jsonValue = await AsyncStorage.getItem(AVAILABILITY_KEY);
+        if (jsonValue != null) {
+            const schedule = JSON.parse(jsonValue);
+
+            // Check if schedule is truly empty (no keys) or effectively empty (no slots)
+            const hasSlots = Object.values(schedule).some((day: any) =>
+                day.isWorkDay && day.slots && day.slots.length > 0
+            );
+
+            if (Object.keys(schedule).length === 0 || !hasSlots) {
+                return DEFAULT_SCHEDULE;
+            }
+            return schedule;
+        }
+        return DEFAULT_SCHEDULE;
+    } catch (error) {
+        console.error('Error getting availability:', error);
+        return DEFAULT_SCHEDULE;
     }
 };

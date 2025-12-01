@@ -1,15 +1,15 @@
-# TimeDirector Visual Identity System
+# Eôs Visual Identity System
 
 ## 1. Core Philosophy
 **"Focus + Calm"**
-TimeDirector is not just a tool; it is a state of mind. The visual language reflects control, precision, and serenity. We reject the anxiety of traditional productivity tools (red badges, ticking clocks) in favor of a "Flow" state.
+Eôs is not just a tool; it is a state of mind. The visual language reflects control, precision, and serenity. We reject the anxiety of traditional productivity tools (red badges, ticking clocks) in favor of a "Flow" state.
 
 ## 2. Logo: The Chrono-Lens
 *   **Symbol**: A dark, semi-transparent crystal prism (The Lens) that focuses scattered light into a single beam (The Direction).
 *   **Meaning**: You are the director. You focus time.
 *   **Usage**:
     *   **App Icon**: The Prism centered on a matte dark background.
-    *   **Wordmark**: "TimeDirector" in **Inter Tight** (Medium weight), tracking -2%. The "Time" is white, "Director" is a subtle grey (60% opacity).
+    *   **Wordmark**: "Eôs" in **Inter Tight** (Medium weight), tracking -2%.
 
 ## 3. Color Palette (Dark Premium)
 The palette is designed for long-term usage without eye strain. Deep, rich, and matte.
@@ -20,8 +20,8 @@ The palette is designed for long-term usage without eye strain. Deep, rich, and 
 *   **Glass Surface**: `#FFFFFF` at 5% opacity + Blur 20px
 
 ### Primary Brand Colors
-*   **Director Indigo**: `#5E5CE6` (Primary Action, Focus)
-*   **Lens Violet**: `#BF5AF2` (Gradients, subtle glows)
+*   **mint green**: `#B4E3BB` (Primary Action, Focus)
+*   **mint green glow**: `#B4E3BB` (Gradients, subtle glows)
 
 ### Functional Colors
 *   **Success (Flow)**: `#32D74B` (Muted, not neon)

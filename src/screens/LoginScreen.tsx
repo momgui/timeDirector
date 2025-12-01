@@ -34,7 +34,7 @@ export default function LoginScreen() {
                 >
                     <View style={styles.header}>
                         <Typography variant="hero" color={COLORS.primary} align="center" style={styles.title}>
-                            TimeDirector
+                            Eôs
                         </Typography>
                         <Typography variant="body" color={COLORS.textSecondary} align="center">
                             Master your time, master your life.
@@ -65,13 +65,7 @@ export default function LoginScreen() {
                                 loading={loading}
                                 fullWidth
                             />
-                            <Button
-                                title="Create Account"
-                                variant="ghost"
-                                onPress={() => { }}
-                                style={styles.secondaryButton}
-                                fullWidth
-                            />
+
                         </View>
                     </Card>
                 </KeyboardAvoidingView>
@@ -98,7 +92,5 @@ const styles = StyleSheet.create({
         marginTop: SPACING.l,
         gap: SPACING.m,
     },
-    secondaryButton: {
-        marginTop: SPACING.s,
-    },
+
 });

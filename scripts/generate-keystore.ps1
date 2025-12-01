@@ -22,7 +22,7 @@ keytool -genkeypair -v `
   -validity 10000 `
   -storepass $password `
   -keypass $password `
-  -dname "CN=TimeDirector, OU=Engineering, O=TimeDirector, L=Paris, S=IDF, C=FR"
+  -dname "CN=Eôs, OU=Engineering, O=Eôs, L=Paris, S=IDF, C=FR"
 
 Write-Host "---------------------------------------------------"
 Write-Host "Keystore generated successfully: $keystoreName"

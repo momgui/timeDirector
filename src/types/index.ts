@@ -11,17 +11,40 @@ export interface Goal {
     deadline: Date;
     createdAt: Date;
     isCompleted: boolean;
+    category?: SlotCategory;
 }
 
 export interface Step {
     id: string;
-    goalId: string;
+    goalId?: string;
     title: string;
     description?: string;
-    date: Date; // The specific date this step is scheduled for
+    date?: Date; // The specific date this step is scheduled for (optional now)
+    scheduledDate?: Date; // The dynamically calculated date
+    sequenceOrder?: number; // Order for the scheduler
     isCompleted: boolean;
+    effort?: number; // 1-5 score, default 1
+    estimatedMinutes?: number; // Estimated time in minutes
     googleCalendarEventId?: string; // To link with Google Calendar
+    category?: SlotCategory;
+    isMilestone?: boolean;
+    parentId?: string;
 }
+
+export type SlotCategory = ' WORK ' | 'PROJECTS' | 'PERSONAL' | 'STUDY' | 'ANYTHING' | 'BLOCKED';
+
+export interface TimeSlot {
+    start: string; // "HH:mm"
+    end: string;   // "HH:mm"
+    category: SlotCategory;
+}
+
+export interface DaySchedule {
+    isWorkDay: boolean;
+    slots: TimeSlot[];
+}
+
+export type WeeklySchedule = Record<string, DaySchedule>;
 
 export type RootStackParamList = {
     Login: undefined;

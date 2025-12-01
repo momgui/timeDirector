@@ -2,29 +2,30 @@ import { Platform } from 'react-native';
 
 export const COLORS = {
     // Base
-    background: '#050505', // Deep Void
-    surface: '#121212', // Soft Charcoal
-    surfaceHighlight: '#1E1E1E', // Slightly lighter for hover/press
+    background: '#0A0A0A', // Void Black
+    surface: '#161618', // Depth Grey
+    surfaceHighlight: '#1C1C1E', // Slightly lighter
 
     // Accents
-    primary: '#D4F34A', // Volt Green
-    primaryDim: 'rgba(212, 243, 74, 0.1)', // Volt Glow
-    secondary: '#8E5AF7', // Electric Purple
+    primary: '#B4E3BB', // mint green
+    primaryDim: 'rgba(180, 227, 187, 0.15)', // mint green glow
+    secondary: '#32D74B', // Flow Green (Success/Completion)
+    accent: '#BF5AF2', // Lens Violet (Subtle gradients)
 
     // Text
     textPrimary: '#FFFFFF',
-    textSecondary: '#A0A0A0',
-    textTertiary: '#666666',
+    textSecondary: 'rgba(235, 235, 245, 0.6)', // 60% White
+    textTertiary: 'rgba(235, 235, 245, 0.3)', // 30% White
     textInverse: '#000000',
 
     // Functional
-    success: '#4CAF50',
-    error: '#FF5252',
-    warning: '#FFC107',
+    success: '#32D74B',
+    error: '#FF453A',
+    warning: '#FFD60A',
 
     // Borders
-    border: 'rgba(255, 255, 255, 0.08)',
-    borderHighlight: 'rgba(255, 255, 255, 0.15)',
+    border: 'rgba(255, 255, 255, 0.1)',
+    borderHighlight: 'rgba(255, 255, 255, 0.2)',
 };
 
 export const SPACING = {
@@ -50,6 +51,7 @@ export const RADIUS = {
 export const FONTS = {
     family: Platform.select({ ios: 'System', android: 'Roboto', default: 'System' }),
     weights: {
+        light: '300',
         regular: '400',
         medium: '500',
         semibold: '600',
@@ -57,24 +59,24 @@ export const FONTS = {
     },
     sizes: {
         caption: 12,
-        body: 15,
-        h3: 18,
-        h2: 24,
-        h1: 32,
-        hero: 40,
+        body: 16, // Increased from 15
+        h3: 20,   // Increased from 18
+        h2: 28,   // Increased from 24
+        h1: 34,   // Increased from 32
+        hero: 48, // Increased from 40
     },
     lineHeights: {
-        caption: 16,
-        body: 24,
-        h3: 24,
-        h2: 32,
-        h1: 40,
-        hero: 48,
+        caption: 18, // Increased from 16
+        body: 26,    // Increased from 24
+        h3: 28,      // Increased from 24
+        h2: 36,      // Increased from 32
+        h1: 44,      // Increased from 40
+        hero: 56,    // Increased from 48
     },
     letterSpacing: {
         tight: -0.5,
         normal: 0,
-        wide: 0.5,
+        wide: 0.8, // Increased from 0.5
     },
 };
 
