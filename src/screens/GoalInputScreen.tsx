@@ -325,6 +325,7 @@ const styles = StyleSheet.create({
     input: {
         marginBottom: SPACING.xl,
         minHeight: 120,
+        maxHeight: 300,
         textAlignVertical: 'top',
         fontSize: 32,
         fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
