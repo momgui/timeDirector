@@ -3,14 +3,17 @@ import {
     User,
     statusCodes,
 } from '@react-native-google-signin/google-signin';
+import { Platform } from 'react-native';
 import { GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID } from '../config';
 
 export const configureGoogleSignIn = () => {
-    GoogleSignin.configure({
-        webClientId: GOOGLE_WEB_CLIENT_ID,
-        iosClientId: GOOGLE_IOS_CLIENT_ID,
-        scopes: ['https://www.googleapis.com/auth/calendar'], // Request calendar access
-    });
+    if (Platform.OS !== 'web') {
+        GoogleSignin.configure({
+            webClientId: GOOGLE_WEB_CLIENT_ID,
+            iosClientId: GOOGLE_IOS_CLIENT_ID,
+            scopes: ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/tasks'], // Request calendar and tasks access
+        });
+    }
 };
 
 export const signIn = async () => {

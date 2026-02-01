@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Layout } from '../design-system/components/Layout';
-import { saveLoginState } from '../services/auth';
+import { saveLoginState, signIn } from '../services/auth';
 import { Typography } from '../design-system/components/Typography';
 import { Input } from '../design-system/components/Input';
 import { Button } from '../design-system/components/Button';
@@ -9,11 +9,34 @@ import { Card } from '../design-system/components/Card';
 import { COLORS, SPACING } from '../design-system/tokens';
 import { useNavigation } from '@react-navigation/native';
 
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import { GOOGLE_WEB_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID } from '../config';
+
+WebBrowser.maybeCompleteAuthSession();
+
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const navigation = useNavigation();
+
+    const [request, response, promptAsync] = Google.useAuthRequest({
+        webClientId: GOOGLE_WEB_CLIENT_ID,
+        androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+        scopes: ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/tasks'],
+    });
+
+    React.useEffect(() => {
+        if (response?.type === 'success') {
+            const { authentication } = response;
+            // Here you would typically use the token to fetch user details or just consider them logged in
+            // For now, we'll just save the login state
+            saveLoginState().then(() => {
+                navigation.navigate('Dashboard' as never);
+            });
+        }
+    }, [response]);
 
     const handleLogin = async () => {
         setLoading(true);
@@ -40,34 +63,24 @@ export default function LoginScreen() {
                             Master your time, master your life.
                         </Typography>
                     </View>
-
-                    <Card variant="glass" padding="xl" style={styles.formCard}>
-                        <Input
-                            label="Email"
-                            placeholder="you@example.com"
-                            value={email}
-                            onChangeText={setEmail}
-                            autoCapitalize="none"
-                            keyboardType="email-address"
-                        />
-                        <Input
-                            label="Password"
-                            placeholder="••••••••"
-                            value={password}
-                            onChangeText={setPassword}
-                            secureTextEntry
-                        />
-
-                        <View style={styles.actions}>
-                            <Button
-                                title="Sign In"
-                                onPress={handleLogin}
-                                loading={loading}
-                                fullWidth
-                            />
-
-                        </View>
-                    </Card>
+                    <Button
+                        title="Sign In with Google"
+                        onPress={async () => {
+                            setLoading(true);
+                            if (Platform.OS === 'web') {
+                                await promptAsync();
+                            } else {
+                                const userInfo = await signIn();
+                                if (userInfo) {
+                                    await saveLoginState();
+                                    navigation.navigate('Dashboard' as never);
+                                }
+                            }
+                            setLoading(false);
+                        }}
+                        loading={loading}
+                        fullWidth
+                    />
                 </KeyboardAvoidingView>
             </TouchableWithoutFeedback>
         </Layout>

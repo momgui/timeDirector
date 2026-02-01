@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Rect, Line } from 'react-native-svg';
 import { Card } from '../design-system/components/Card';
 import { Typography } from '../design-system/components/Typography';
 import { Button } from '../design-system/components/Button';
@@ -25,6 +25,23 @@ const ClockIcon = ({ color = COLORS.textSecondary, size = 16 }: { color?: string
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <Path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
         <Path d="M12 6v6l4 2" />
+    </Svg>
+);
+
+const CalendarIcon = ({ color = COLORS.textInverse, size = 20 }: { color?: string; size?: number }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <Rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <Line x1="16" y1="2" x2="16" y2="6" />
+        <Line x1="8" y1="2" x2="8" y2="6" />
+        <Line x1="3" y1="10" x2="21" y2="10" />
+    </Svg>
+);
+
+const TrashIcon = ({ color = COLORS.textInverse, size = 20 }: { color?: string; size?: number }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <Path d="M3 6h18" />
+        <Path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+        <Path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
     </Svg>
 );
 
@@ -117,7 +134,7 @@ export const GoalDetailModal: React.FC<GoalDetailModalProps> = ({
                                             )}
                                         </View>
                                         <Typography variant="caption" color={COLORS.textTertiary}>
-                                            {new Date(step.date).toLocaleDateString()}
+                                            {step.date ? new Date(step.date).toLocaleDateString() : ''}
                                         </Typography>
                                     </View>
                                 </View>
@@ -133,18 +150,38 @@ export const GoalDetailModal: React.FC<GoalDetailModalProps> = ({
                     />
 
                     <View style={styles.actions}>
-                        <Button
-                            title="Delete Goal"
-                            variant="secondary"
+                        <TouchableOpacity
                             onPress={() => onDelete(goal.id)}
-                            style={{ backgroundColor: COLORS.error, flex: 1, marginRight: SPACING.s }}
-                        />
-                        <Button
-                            title="Reschedule"
-                            variant="primary"
+                            style={{
+                                backgroundColor: COLORS.surfaceHighlight,
+                                width: 48,
+                                height: 48,
+                                borderRadius: RADIUS.full,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderWidth: 1,
+                                borderColor: COLORS.error,
+                                marginRight: SPACING.s
+                            }}
+                        >
+                            <TrashIcon color={COLORS.error} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
                             onPress={() => onReschedule(goal.id)}
-                            style={{ flex: 1, marginLeft: SPACING.s }}
-                        />
+                            style={{
+                                backgroundColor: COLORS.surfaceHighlight,
+                                width: 48,
+                                height: 48,
+                                borderRadius: RADIUS.full,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderWidth: 1,
+                                borderColor: COLORS.primary
+                            }}
+                        >
+                            <CalendarIcon color={COLORS.primary} />
+                        </TouchableOpacity>
                     </View>
                 </Card>
             </View>
@@ -224,7 +261,7 @@ const styles = StyleSheet.create({
     },
     actions: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-end',
         marginTop: SPACING.m,
     },
     stepHeader: {

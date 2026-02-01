@@ -5,6 +5,14 @@ export interface User {
     photo: string | null;
 }
 
+export interface GoalResource {
+    id: string;
+    title: string;
+    type: 'LINK' | 'FILE_REF';
+    url: string; // http://... or file://...
+    createdAt: Date;
+}
+
 export interface Goal {
     id: string;
     title: string;
@@ -12,6 +20,7 @@ export interface Goal {
     createdAt: Date;
     isCompleted: boolean;
     category?: SlotCategory;
+    resources?: GoalResource[];
 }
 
 export interface Step {
@@ -50,4 +59,5 @@ export type RootStackParamList = {
     Login: undefined;
     Dashboard: undefined;
     GoalInput: undefined;
+    GoalDetails: { goalId: string };
 };

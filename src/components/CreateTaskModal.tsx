@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { DatePickerModal } from './DatePickerModal';
 import { Card } from '../design-system/components/Card';
 import { Typography } from '../design-system/components/Typography';
 import { Button } from '../design-system/components/Button';
@@ -11,10 +11,10 @@ import { SlotCategory } from '../types';
 
 const getCategoryColor = (category: SlotCategory) => {
     switch (category) {
-        case ' WORK ': return COLORS.primary;
-        case 'PROJECTS': return '#8B5CF6'; // Purple
-        case 'PERSONAL': return '#10B981'; // Green
-        case 'STUDY': return '#F59E0B'; // Amber
+        case ' WORK ': return COLORS.categories.work;
+        case 'PROJECTS': return COLORS.categories.projects;
+        case 'PERSONAL': return COLORS.categories.personal;
+        case 'STUDY': return COLORS.categories.study;
         default: return COLORS.textSecondary;
     }
 };
@@ -69,10 +69,9 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         onClose();
     };
 
-    const onDateChange = (event: any, selectedDate?: Date) => {
-        const currentDate = selectedDate || date;
-        setShowDatePicker(Platform.OS === 'ios');
-        setDate(currentDate);
+    const handleDateSelect = (selectedDate: Date) => {
+        setDate(selectedDate);
+        setShowDatePicker(false);
     };
 
     return (
@@ -172,16 +171,13 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                         />
                     </View>
 
-                    {showDatePicker && (
-                        <DateTimePicker
-                            value={date}
-                            mode="date"
-                            display="default"
-                            onChange={onDateChange}
-                            minimumDate={new Date()}
-                            themeVariant="dark"
-                        />
-                    )}
+                    <DatePickerModal
+                        visible={showDatePicker}
+                        onClose={() => setShowDatePicker(false)}
+                        onSelect={handleDateSelect}
+                        initialDate={date}
+                        title="Set Due Date"
+                    />
                 </Card>
             </View>
         </Modal>

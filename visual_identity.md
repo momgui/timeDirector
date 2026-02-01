@@ -11,34 +11,34 @@ Eôs is not just a tool; it is a state of mind. The visual language reflects con
     *   **App Icon**: The Prism centered on a matte dark background.
     *   **Wordmark**: "Eôs" in **Inter Tight** (Medium weight), tracking -2%.
 
-## 3. Color Palette (Dark Premium)
-The palette is designed for long-term usage without eye strain. Deep, rich, and matte.
+## 3. Color Palette (Organic Premium)
+The palette has evolved from "Digital Cold" to "Organic Warmth". It grounds the user.
 
 ### Backgrounds
-*   **Void Black**: `#0A0A0A` (Main background)
-*   **Depth Grey**: `#161618` (Cards, Modals)
-*   **Glass Surface**: `#FFFFFF` at 5% opacity + Blur 20px
+*   **Void Black**: `#0A0A0A` (Deepest depth)
+*   **Warm Charcoal**: `#1C1917` (Cards, Surfaces - Warm undertones)
+*   **Clay Highlight**: `#E07A5F` at 5% opacity
 
 ### Primary Brand Colors
-*   **mint green**: `#B4E3BB` (Primary Action, Focus)
-*   **mint green glow**: `#B4E3BB` (Gradients, subtle glows)
+*   **Spiced Terracotta**: `#E56B4E` (Primary Action, Foundation - Warmer & Richer)
+*   **Terra Glow**: `rgba(229, 107, 78, 0.15)`
 
-### Functional Colors
-*   **Success (Flow)**: `#32D74B` (Muted, not neon)
-*   **Warning (Drift)**: `#FFD60A`
-*   **Error (Break)**: `#FF453A`
+### Functional & Secondary
+*   **Sage (Balance)**: `#81B29A` (Secondary, Success)
+*   **Sand (Focus)**: `#F2CC8F` (Accents, Warnings)
+*   **Red Clay (Error)**: `#E63946`
 
 ## 4. Typography
 **Font Family**: System (San Francisco / Roboto) or **Inter** if custom.
-*   **Headings**: Light or Regular weight. Letter-spacing -0.5px.
-*   **Body**: Regular. Readable grey (`#EBEBF5` at 90%).
-*   **Monospace**: For time inputs and data (JetBrains Mono or SF Mono).
+*   **Headings**: Tighter letter-spacing (-0.5px to -0.8px) for a focused, editorial look.
+*   **Body**: Regular weight. Readable bone white.
+*   **Monospace**: **CRITICAL**. Used for ALL dates, times, durations, and percentages. (Menlo/Roboto Mono).
 
-## 5. UI Principles (The "Linear" Aesthetic)
-1.  **Borders over Shadows**: Use subtle 1px borders (`#FFFFFF` at 10%) to define shapes instead of heavy drop shadows.
-2.  **Glows for State**: Active states emit a soft glow, not just a color change.
-3.  **Micro-Interactions**: Everything should feel fluid. Hover states should "lift" the element.
-4.  **Negative Space**: Give the content room to breathe. Dense interfaces cause anxiety.
+## 5. UI Principles (The "Professional" Aesthetic)
+1.  **Precision over Playfulness**: We use tighter border radii (8px-12px) and avoid "bouncy" animations. The interface feels solid and engineered.
+2.  **Data Density**: Use **Monospace** fonts for all data points (dates, times, percentages) to convey precision and align numbers.
+3.  **Subtle Definition**: Cards have high-quality 1px borders (`#E07A5F` at 15%) instead of heavy shadows.
+4.  **Negative Space**: Give the content room, but keep related elements grouped tightly.
 
 ## 6. Assets & Implementation
 *   **Icons**: Use thin stroke icons (1.5px). Rounded corners.

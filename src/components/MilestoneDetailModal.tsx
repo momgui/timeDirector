@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, View, StyleSheet, TouchableOpacity, ScrollView, TextInput, Keyboard, ActivityIndicator } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Rect, Line } from 'react-native-svg';
 import { Card } from '../design-system/components/Card';
 import { Typography } from '../design-system/components/Typography';
 import { Button } from '../design-system/components/Button';
@@ -31,6 +31,15 @@ const ClockIcon = ({ color = COLORS.textSecondary, size = 16 }: { color?: string
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <Path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
         <Path d="M12 6v6l4 2" />
+    </Svg>
+);
+
+const CalendarIcon = ({ color = COLORS.textInverse, size = 20 }: { color?: string; size?: number }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <Rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <Line x1="16" y1="2" x2="16" y2="6" />
+        <Line x1="8" y1="2" x2="8" y2="6" />
+        <Line x1="3" y1="10" x2="21" y2="10" />
     </Svg>
 );
 
@@ -225,23 +234,45 @@ export const MilestoneDetailModal: React.FC<MilestoneDetailModalProps> = ({
                     </ScrollView>
 
                     <View style={styles.actions}>
-                        <Button
-                            title="Delete"
-                            variant="secondary"
+                        <TouchableOpacity
                             onPress={() => onDelete(milestone.id)}
-                            style={{ backgroundColor: COLORS.error, flex: 1, marginRight: SPACING.s }}
-                        />
-                        <Button
-                            title="Reschedule"
-                            variant="secondary"
+                            style={{
+                                backgroundColor: COLORS.surfaceHighlight,
+                                width: 48,
+                                height: 48,
+                                borderRadius: RADIUS.full,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderWidth: 1,
+                                borderColor: COLORS.error,
+                                marginRight: SPACING.s
+                            }}
+                        >
+                            <TrashIcon color={COLORS.error} size={20} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
                             onPress={() => onReschedule(milestone.id)}
-                            style={{ flex: 1, marginRight: SPACING.s }}
-                        />
+                            style={{
+                                backgroundColor: COLORS.surfaceHighlight,
+                                width: 48,
+                                height: 48,
+                                borderRadius: RADIUS.full,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderWidth: 1,
+                                borderColor: COLORS.border,
+                                marginRight: SPACING.s
+                            }}
+                        >
+                            <CalendarIcon color={COLORS.textPrimary} />
+                        </TouchableOpacity>
+
                         <Button
                             title={milestone.isCompleted ? "Mark Incomplete" : "Complete"}
                             variant="primary"
                             onPress={() => onToggleComplete(milestone)}
-                            style={{ flex: 1.5 }}
+                            style={{ flex: 1 }}
                         />
                     </View>
                 </Card>

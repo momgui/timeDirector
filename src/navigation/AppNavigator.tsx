@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import GoalInputScreen from '../screens/GoalInputScreen';
+import GoalDetailsScreen from '../screens/GoalDetailsScreen';
 import { RootStackParamList } from '../types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -40,6 +41,7 @@ const AppNavigator = () => {
                 <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
                 <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
                 <Stack.Screen name="GoalInput" component={GoalInputScreen} options={{ headerShown: false }} />
+                <Stack.Screen name="GoalDetails" component={GoalDetailsScreen} options={{ headerShown: false }} />
             </Stack.Navigator>
         </NavigationContainer>
     );

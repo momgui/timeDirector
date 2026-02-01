@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { Typography } from './Typography';
 import { Button } from './Button';
+import { Card } from './Card';
 import { COLORS, SPACING } from '../tokens';
 
 interface EmptyStateProps {
@@ -13,6 +14,7 @@ interface EmptyStateProps {
     };
     icon?: React.ReactNode;
     style?: ViewStyle;
+    variant?: 'solid' | 'glass' | 'outlined';
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
@@ -21,9 +23,14 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     action,
     icon,
     style,
+    variant = 'solid',
 }) => {
     return (
-        <View style={[styles.container, style]}>
+        <Card
+            variant={variant}
+            padding="xl"
+            style={[styles.container, style]}
+        >
             {icon && <View style={styles.iconContainer}>{icon}</View>}
             <Typography variant="h3" weight="semibold" align="center" style={styles.title}>
                 {title}
@@ -41,7 +48,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
                     style={styles.button}
                 />
             )}
-        </View>
+        </Card>
     );
 };
 
@@ -49,9 +56,6 @@ const styles = StyleSheet.create({
     container: {
         alignItems: 'center',
         justifyContent: 'center',
-        padding: SPACING.xl,
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        borderRadius: 16,
     },
     iconContainer: {
         marginBottom: SPACING.m,

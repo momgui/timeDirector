@@ -5,6 +5,7 @@ import { Card } from '../design-system/components/Card';
 import { Typography } from '../design-system/components/Typography';
 import { Button } from '../design-system/components/Button';
 import { Checkbox } from '../design-system/components/Checkbox';
+import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { COLORS, SPACING, RADIUS } from '../design-system/tokens';
 import { WeeklySchedule, DaySchedule, TimeSlot, SlotCategory } from '../types';
 
@@ -20,12 +21,12 @@ const CATEGORIES: SlotCategory[] = [' WORK ', 'PROJECTS', 'PERSONAL', 'STUDY', '
 
 const getCategoryColor = (category: SlotCategory) => {
     switch (category) {
-        case ' WORK ': return COLORS.primary;
-        case 'PROJECTS': return '#8B5CF6'; // Purple
-        case 'PERSONAL': return '#10B981'; // Green
-        case 'STUDY': return '#F59E0B'; // Amber
-        case 'ANYTHING': return '#FFFFFF'; // White
-        case 'BLOCKED': return '#EF4444'; // Red
+        case ' WORK ': return COLORS.categories.work;
+        case 'PROJECTS': return COLORS.categories.projects;
+        case 'PERSONAL': return COLORS.categories.personal;
+        case 'STUDY': return COLORS.categories.study;
+        case 'ANYTHING': return COLORS.categories.anything;
+        case 'BLOCKED': return COLORS.categories.blocked;
         default: return COLORS.textSecondary;
     }
 };
@@ -39,6 +40,7 @@ export const AvailabilityModal: React.FC<AvailabilityModalProps> = ({
     const [schedule, setSchedule] = useState<WeeklySchedule>({});
     const [showTimePicker, setShowTimePicker] = useState<{ day: string; slotIndex: number; type: 'start' | 'end' } | null>(null);
     const [tempDate, setTempDate] = useState(new Date());
+    const [resetModalVisible, setResetModalVisible] = useState(false);
 
     useEffect(() => {
         if (visible) {
@@ -76,31 +78,23 @@ export const AvailabilityModal: React.FC<AvailabilityModalProps> = ({
     }, [visible, initialSchedule]);
 
     const handleReset = () => {
-        Alert.alert(
-            "Reset Schedule",
-            "Reset to default (9:00 - 24:00)?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Reset",
-                    style: "destructive",
-                    onPress: () => {
-                        const defaultSchedule: WeeklySchedule = {};
-                        DAYS.forEach(day => {
-                            defaultSchedule[day] = {
-                                isWorkDay: true,
-                                slots: [
-                                    { start: '09:00', end: '12:00', category: 'ANYTHING' },
-                                    { start: '12:00', end: '14:00', category: 'BLOCKED' },
-                                    { start: '14:00', end: '24:00', category: 'ANYTHING' }
-                                ]
-                            };
-                        });
-                        setSchedule(defaultSchedule);
-                    }
-                }
-            ]
-        );
+        setResetModalVisible(true);
+    };
+
+    const confirmReset = () => {
+        const defaultSchedule: WeeklySchedule = {};
+        DAYS.forEach(day => {
+            defaultSchedule[day] = {
+                isWorkDay: true,
+                slots: [
+                    { start: '09:00', end: '12:00', category: 'ANYTHING' },
+                    { start: '12:00', end: '14:00', category: 'BLOCKED' },
+                    { start: '14:00', end: '24:00', category: 'ANYTHING' }
+                ]
+            };
+        });
+        setSchedule(defaultSchedule);
+        setResetModalVisible(false);
     };
 
     const handleToggleDay = (day: string) => {
@@ -345,6 +339,14 @@ export const AvailabilityModal: React.FC<AvailabilityModalProps> = ({
                     />
                 )
             )}
+
+            <DeleteConfirmationModal
+                visible={resetModalVisible}
+                title="Reset Schedule"
+                message="Reset to default (9:00 - 24:00)?"
+                onClose={() => setResetModalVisible(false)}
+                onConfirm={confirmReset}
+            />
         </Modal>
     );
 };

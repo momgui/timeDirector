@@ -7,6 +7,7 @@ interface TypographyProps extends TextProps {
     color?: string;
     weight?: keyof typeof FONTS.weights;
     align?: TextStyle['textAlign'];
+    mono?: boolean;
     style?: StyleProp<TextStyle>;
 }
 
@@ -16,6 +17,7 @@ export const Typography: React.FC<TypographyProps> = ({
     color = COLORS.textPrimary,
     weight,
     align = 'left',
+    mono = false,
     style,
     ...props
 }) => {
@@ -39,6 +41,11 @@ export const Typography: React.FC<TypographyProps> = ({
     const baseStyle: TextStyle = {
         color,
         textAlign: align,
+        fontFamily: mono
+            ? FONTS.family.mono
+            : (variant === 'hero' || variant === 'h1' || variant === 'h2' || variant === 'h3'
+                ? FONTS.family.heading
+                : FONTS.family.body),
         fontWeight: weight ? (FONTS.weights[weight] as TextStyle['fontWeight']) : undefined,
         ...getVariantStyle(),
     };

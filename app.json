@@ -2,6 +2,7 @@
   "expo": {
     "name": "Eôs",
     "slug": "eos",
+    "scheme": "eos",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -29,7 +30,9 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "./plugins/withAndroidSigning"
+      "./plugins/withAndroidSigning",
+      "expo-web-browser",
+      "expo-font"
     ]
   }
 }

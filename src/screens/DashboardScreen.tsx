@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, FlatList, ScrollView, LayoutAnimation, Platform, UIManager, TouchableOpacity, Alert, Dimensions, Animated } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import Svg, { Path } from 'react-native-svg';
-import { signOut } from '../services/auth';
+import Svg, { Path, Rect, Line } from 'react-native-svg';
+import { signOut, getCurrentUser } from '../services/auth';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, Goal, Step, WeeklySchedule, SlotCategory } from '../types';
 import { getGoals, getSteps, updateStep, deleteGoal, deleteStep, updateGoal, saveSteps, getAvailability, saveAvailability } from '../services/storage';
@@ -16,15 +16,20 @@ import { Checkbox } from '../design-system/components/Checkbox';
 import { EmptyState } from '../design-system/components/EmptyState';
 import { FadeIn } from '../design-system/components/FadeIn';
 import { WeeklyCalendar } from '../components/WeeklyCalendar';
-import { GoalDetailModal } from '../components/GoalDetailModal';
 import { RenameModal } from '../components/RenameModal';
 import { CreateTaskModal } from '../components/CreateTaskModal';
 import { AvailabilityModal } from '../components/AvailabilityModal';
 import { MilestoneDetailModal } from '../components/MilestoneDetailModal';
-import { COLORS, SPACING } from '../design-system/tokens';
+import { CreationMenuModal } from '../components/CreationMenuModal';
+import { BrainDumpModal } from '../components/BrainDumpModal';
+import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal';
+import { COLORS, SPACING, RADIUS } from '../design-system/tokens';
 import { v4 as uuidv4 } from 'uuid';
 import 'react-native-get-random-values';
 import { SchedulerService } from '../services/scheduler';
+import { listEvents, listCalendars } from '../services/googleCalendar';
+import { listTaskLists, listTasks } from '../services/googleTasks';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.8;
@@ -54,7 +59,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     const [selectedMilestone, setSelectedMilestone] = useState<Step | null>(null);
     const [renameModalVisible, setRenameModalVisible] = useState(false);
     const [createTaskModalVisible, setCreateTaskModalVisible] = useState(false);
+    const [brainDumpModalVisible, setBrainDumpModalVisible] = useState(false);
+    const [creationMenuVisible, setCreationMenuVisible] = useState(false);
     const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
+    const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+    const [deleteConfig, setDeleteConfig] = useState<{
+        title: string;
+        message: string;
+        onConfirm: () => Promise<void>;
+    } | null>(null);
     const [schedule, setSchedule] = useState<WeeklySchedule>({});
     const [energyMode, setEnergyMode] = useState<EnergyMode>('HIGH');
     const isFocused = useIsFocused();
@@ -98,8 +111,84 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         const loadedSteps = await getSteps();
         const loadedSchedule = await getAvailability();
 
+        let allSteps = [...loadedSteps];
+
+        // Google Integration
+        const startOfRange = new Date();
+        startOfRange.setDate(startOfRange.getDate() - 7); // Load past week
+        const endOfRange = new Date();
+        endOfRange.setDate(endOfRange.getDate() + 30); // Load next 30 days
+
+        try {
+            // Check if signed in silently first to get tokens if possible
+            const currentUser = await getCurrentUser();
+
+            if (currentUser) {
+                const tokens = await GoogleSignin.getTokens();
+                const accessToken = tokens.accessToken;
+
+                // 1. Calendar
+                const calendarList = await listCalendars(accessToken);
+                let allEvents: any[] = [];
+
+                // Fetch events for each calendar
+                for (const calendar of calendarList) {
+                    const events = await listEvents(accessToken, calendar.id, startOfRange.toISOString(), endOfRange.toISOString());
+                    allEvents = [...allEvents, ...events];
+                }
+
+                const calendarSteps: Step[] = allEvents.map((event) => {
+                    const eventDate = event.start.dateTime ? new Date(event.start.dateTime) : (event.start.date ? new Date(event.start.date) : new Date());
+                    // Check if event is in the past
+                    const isPast = event.end.dateTime
+                        ? new Date(event.end.dateTime) < new Date()
+                        : (event.end.date ? new Date(event.end.date) < new Date() : false);
+
+                    return {
+                        id: event.id,
+                        title: event.summary,
+                        description: event.description || '',
+                        // Start date is reliable due to 'singleEvents=true'
+                        date: eventDate,
+                        isCompleted: isPast, // Mark past events as completed so they don't get rescheduled
+                        effort: 1, // Default effort
+                        category: ' WORK ', // Default category, maybe infer?
+                        googleCalendarEventId: event.id
+                    };
+                });
+
+                // Deduplicate events just in case
+                const uniqueCalendarSteps = Array.from(new Map(calendarSteps.map(item => [item.id, item])).values());
+
+                allSteps = [...allSteps, ...uniqueCalendarSteps];
+
+                // 2. Tasks
+                const taskLists = await listTaskLists(accessToken);
+                // Only fetch from the first task list for now or 'My Tasks' equivalent
+                if (taskLists.length > 0) {
+                    const tasks = await listTasks(accessToken, taskLists[0].id);
+                    const googleTasksSteps: Step[] = tasks.map((task) => ({
+                        id: task.id,
+                        title: task.title,
+                        description: task.notes || '',
+                        date: task.due ? new Date(task.due) : undefined, // Some tasks have no due date
+                        isCompleted: task.status === 'completed',
+                        effort: 1,
+                        category: 'PERSONAL',
+                        parentId: undefined // Flatten structure for now
+                    }));
+                    allSteps = [...allSteps, ...googleTasksSteps];
+                }
+            }
+        } catch (error) {
+            console.log("Error fetching Google Data", error);
+        }
+
         // Apply dynamic scheduling
-        const distributedSteps = SchedulerService.distributeTasks(loadedSteps, loadedSchedule);
+        // Note: SchedulerService might move tasks around. 
+        // We probably want to keep fixed Google Events fixed.
+        // For now, let's just pass everything through.
+        const distributedSteps = SchedulerService.distributeTasks(allSteps, loadedSchedule);
 
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setGoals(loadedGoals);
@@ -114,24 +203,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     }, [isFocused]);
 
     const handleAddPress = () => {
-        Alert.alert(
-            "Create New",
-            "What would you like to create?",
-            [
-                {
-                    text: "Goal",
-                    onPress: () => navigation.navigate('GoalInput')
-                },
-                {
-                    text: "Task",
-                    onPress: () => setCreateTaskModalVisible(true)
-                },
-                {
-                    text: "Cancel",
-                    style: "cancel"
-                }
-            ]
-        );
+        setCreationMenuVisible(true);
     };
 
     const handleCreateTask = async (title: string, date: Date, description?: string, effort: number = 1, category?: SlotCategory, parentId?: string) => {
@@ -146,6 +218,20 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             parentId,
         };
         await saveSteps([newStep]);
+        loadData();
+    };
+
+    const handleBrainDumpSave = async (titles: string[]) => {
+        const newSteps: Step[] = titles.map(title => ({
+            id: uuidv4(),
+            title,
+            date: new Date(), // Default to today
+            isCompleted: false,
+            effort: 1, // Default effort
+            category: 'PERSONAL', // Default category
+        }));
+
+        await saveSteps(newSteps);
         loadData();
     };
 
@@ -194,22 +280,16 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     };
 
     const handleMilestoneDelete = async (stepId: string) => {
-        Alert.alert(
-            "Delete Milestone?",
-            "Are you sure you want to delete this milestone?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        await deleteStep(stepId);
-                        setSelectedMilestone(null);
-                        loadData();
-                    }
-                }
-            ]
-        );
+        setDeleteConfig({
+            title: "Delete Milestone?",
+            message: "Are you sure you want to delete this milestone?",
+            onConfirm: async () => {
+                await deleteStep(stepId);
+                setSelectedMilestone(null);
+                loadData();
+            }
+        });
+        setDeleteModalVisible(true);
     };
 
     const handleMilestoneReschedule = (stepId: string) => {
@@ -229,22 +309,16 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     };
 
     const handleMenuDelete = async (goalId: string) => {
-        Alert.alert(
-            "Delete Goal?",
-            "Are you sure you want to delete this goal and all its tasks?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        await deleteGoal(goalId);
-                        setSelectedGoalForMenu(null);
-                        loadData();
-                    }
-                }
-            ]
-        );
+        setDeleteConfig({
+            title: "Delete Goal?",
+            message: "Are you sure you want to delete this goal and all its tasks?",
+            onConfirm: async () => {
+                await deleteGoal(goalId);
+                setSelectedGoalForMenu(null);
+                loadData();
+            }
+        });
+        setDeleteModalVisible(true);
     };
 
     const handleMenuReschedule = (goalId: string) => {
@@ -273,32 +347,26 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     };
 
     const handleDelete = () => {
-        Alert.alert(
-            "Delete Selected?",
-            `Are you sure you want to delete ${selectedItems.size} item(s)? This cannot be undone.`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        if (selectionType === 'GOAL') {
-                            for (const id of selectedItems) {
-                                await deleteGoal(id);
-                            }
-                        } else {
-                            for (const id of selectedItems) {
-                                await deleteStep(id);
-                            }
-                        }
-                        setSelectionMode(false);
-                        setSelectedItems(new Set());
-                        setSelectionType(null);
-                        loadData();
+        setDeleteConfig({
+            title: "Delete Selected?",
+            message: `Are you sure you want to delete ${selectedItems.size} item(s)? This cannot be undone.`,
+            onConfirm: async () => {
+                if (selectionType === 'GOAL') {
+                    for (const id of selectedItems) {
+                        await deleteGoal(id);
+                    }
+                } else {
+                    for (const id of selectedItems) {
+                        await deleteStep(id);
                     }
                 }
-            ]
-        );
+                setSelectionMode(false);
+                setSelectedItems(new Set());
+                setSelectionType(null);
+                loadData();
+            }
+        });
+        setDeleteModalVisible(true);
     };
 
     const handleReschedule = () => {
@@ -378,6 +446,30 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         </Svg>
     );
 
+    const CalendarIcon = ({ color = COLORS.textSecondary, size = 20 }: { color?: string; size?: number }) => (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <Line x1="16" y1="2" x2="16" y2="6" />
+            <Line x1="8" y1="2" x2="8" y2="6" />
+            <Line x1="3" y1="10" x2="21" y2="10" />
+        </Svg>
+    );
+
+    const TrashIcon = ({ color = COLORS.textInverse, size = 20 }: { color?: string; size?: number }) => (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Path d="M3 6h18" />
+            <Path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+            <Path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+        </Svg>
+    );
+
+    const EditIcon = ({ color = COLORS.textInverse, size = 20 }: { color?: string; size?: number }) => (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <Path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </Svg>
+    );
+
     const renderStep = ({ item, index }: { item: Step; index: number }) => {
         const isSelected = selectedItems.has(item.id);
         const isMilestone = item.isMilestone;
@@ -441,7 +533,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                                     {(item.estimatedMinutes || ((item.scheduledDate || item.date) && isMilestone)) && (
                                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                             <ClockIcon color={COLORS.textTertiary} size={12} />
-                                            <Typography variant="caption" color={COLORS.textSecondary} style={{ marginLeft: 4 }}>
+                                            <Typography variant="caption" color={COLORS.textSecondary} style={{ marginLeft: 4 }} mono>
                                                 {item.estimatedMinutes ? `${item.estimatedMinutes}m` : ''}
                                                 {item.estimatedMinutes && (item.scheduledDate || item.date) && isMilestone ? ' • ' : ''}
                                                 {(item.scheduledDate || item.date) && isMilestone ? new Date(item.scheduledDate || item.date!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
@@ -482,7 +574,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             <FadeIn delay={index * 100}>
                 <TouchableOpacity
                     onLongPress={() => handleLongPress(item.id, 'GOAL')}
-                    onPress={() => selectionMode ? handlePress(item.id, 'GOAL') : setSelectedGoalForMenu(item)}
+                    onPress={() => selectionMode ? handlePress(item.id, 'GOAL') : navigation.navigate('GoalDetails', { goalId: item.id })}
                     activeOpacity={0.9}
                 >
                     <Card
@@ -499,7 +591,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                                 <Typography variant="h3" weight="semibold" style={styles.goalTitle}>
                                     {item.title}
                                 </Typography>
-                                <Typography variant="caption" color={COLORS.textSecondary}>
+                                <Typography variant="caption" color={COLORS.textSecondary} mono>
                                     {new Date(item.deadline).toLocaleDateString()}
                                 </Typography>
                             </View>
@@ -508,7 +600,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                             )}
                         </View>
                         <ProgressBar progress={progress} style={styles.progressBar} />
-                        <Typography variant="caption" color={COLORS.textSecondary} align="right">
+                        <Typography variant="caption" color={COLORS.textSecondary} align="right" mono>
                             {Math.round(progress * 100)}% Complete
                         </Typography>
                     </Card>
@@ -561,12 +653,12 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 </View>
 
                 <View style={{ flexDirection: 'row', gap: SPACING.s }}>
-                    <Button
-                        title="📅"
+                    <TouchableOpacity
                         onPress={() => setAvailabilityModalVisible(true)}
-                        size="s"
-                        style={styles.addButton}
-                    />
+                        style={[styles.addButton, { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.full, alignItems: 'center', justifyContent: 'center' }]}
+                    >
+                        <CalendarIcon />
+                    </TouchableOpacity>
                     <Button
                         title="+"
                         onPress={handleAddPress}
@@ -677,26 +769,55 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
 
             {selectionMode && (
                 <View style={styles.actionBar}>
-                    <Button
-                        title="Delete"
-                        variant="secondary"
+                    <TouchableOpacity
                         onPress={handleDelete}
-                        style={{ backgroundColor: COLORS.error, flex: 1, marginRight: SPACING.s }}
-                    />
+                        style={{
+                            backgroundColor: COLORS.surfaceHighlight,
+                            width: 48,
+                            height: 48,
+                            borderRadius: RADIUS.full,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderWidth: 1,
+                            borderColor: COLORS.error
+                        }}
+                    >
+                        <TrashIcon color={COLORS.error} />
+                    </TouchableOpacity>
+
                     {selectedItems.size === 1 && (
-                        <Button
-                            title="Rename"
-                            variant="secondary"
+                        <TouchableOpacity
                             onPress={handleRename}
-                            style={{ flex: 1, marginRight: SPACING.s }}
-                        />
+                            style={{
+                                backgroundColor: COLORS.surfaceHighlight,
+                                width: 48,
+                                height: 48,
+                                borderRadius: RADIUS.full,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderWidth: 1,
+                                borderColor: COLORS.border
+                            }}
+                        >
+                            <EditIcon color={COLORS.textPrimary} />
+                        </TouchableOpacity>
                     )}
-                    <Button
-                        title="Reschedule"
-                        variant="primary"
+
+                    <TouchableOpacity
                         onPress={handleReschedule}
-                        style={{ flex: 1 }}
-                    />
+                        style={{
+                            backgroundColor: COLORS.surfaceHighlight,
+                            width: 48,
+                            height: 48,
+                            borderRadius: RADIUS.full,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderWidth: 1,
+                            borderColor: COLORS.primary
+                        }}
+                    >
+                        <CalendarIcon color={COLORS.primary} />
+                    </TouchableOpacity>
                 </View>
             )}
 
@@ -711,20 +832,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 />
             )}
 
-            <GoalDetailModal
-                visible={!!selectedGoalForMenu}
-                goal={selectedGoalForMenu}
-                steps={steps}
-                onClose={() => setSelectedGoalForMenu(null)}
-                onDelete={handleMenuDelete}
-                onReschedule={handleMenuReschedule}
-                onUpdateCategory={handleUpdateCategory}
-                onAddStep={(title, date, description, effort, category) => {
-                    if (selectedGoalForMenu) {
-                        handleAddStepToGoal(selectedGoalForMenu.id, title, date, description, effort, category);
-                    }
-                }}
-            />
+
 
             <RenameModal
                 visible={renameModalVisible}
@@ -780,7 +888,51 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 onOpenSubMilestone={(subMilestone) => {
                     setSelectedMilestone(subMilestone);
                 }}
+                onToggleSubtask={async (subtask) => {
+                    const updatedSubtask = { ...subtask, isCompleted: !subtask.isCompleted };
+                    await updateStep(updatedSubtask);
+                    loadData();
+                }}
+                onGenerateSubtasks={() => {
+                    // Optional: implement AI generation later
+                }}
             />
+
+            <CreationMenuModal
+                visible={creationMenuVisible}
+                onClose={() => setCreationMenuVisible(false)}
+                onCreateGoal={() => {
+                    setCreationMenuVisible(false);
+                    navigation.navigate('GoalInput');
+                }}
+                onCreateTask={() => {
+                    setCreationMenuVisible(false);
+                    setCreateTaskModalVisible(true);
+                }}
+                onBrainDump={() => {
+                    setCreationMenuVisible(false);
+                    setBrainDumpModalVisible(true);
+                }}
+            />
+
+            <BrainDumpModal
+                visible={brainDumpModalVisible}
+                onClose={() => setBrainDumpModalVisible(false)}
+                onSave={handleBrainDumpSave}
+            />
+
+            {deleteConfig && (
+                <DeleteConfirmationModal
+                    visible={deleteModalVisible}
+                    title={deleteConfig.title}
+                    message={deleteConfig.message}
+                    onClose={() => setDeleteModalVisible(false)}
+                    onConfirm={async () => {
+                        await deleteConfig.onConfirm();
+                        setDeleteModalVisible(false);
+                    }}
+                />
+            )}
         </Layout>
     );
 };
@@ -898,7 +1050,7 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.surfaceHighlight,
         padding: SPACING.m,
         borderRadius: 16,
-        shadowColor: "#000",
+        shadowColor: COLORS.shadow,
         shadowOffset: {
             width: 0,
             height: 4,

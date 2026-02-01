@@ -94,6 +94,44 @@ export const deleteStep = async (stepId: string) => {
     }
 };
 
+export const addResourceToGoal = async (goalId: string, resource: any) => {
+    try {
+        const storedGoals = await getGoals();
+        const goalIndex = storedGoals.findIndex(g => g.id === goalId);
+        if (goalIndex >= 0) {
+            const goal = storedGoals[goalIndex];
+            const updatedGoal = {
+                ...goal,
+                resources: [...(goal.resources || []), resource]
+            };
+            storedGoals[goalIndex] = updatedGoal;
+            await AsyncStorage.setItem(GOALS_KEY, JSON.stringify(storedGoals));
+        }
+    } catch (error) {
+        console.error('Error adding resource:', error);
+    }
+};
+
+export const deleteResourceFromGoal = async (goalId: string, resourceId: string) => {
+    try {
+        const storedGoals = await getGoals();
+        const goalIndex = storedGoals.findIndex(g => g.id === goalId);
+        if (goalIndex >= 0) {
+            const goal = storedGoals[goalIndex];
+            if (goal.resources) {
+                const updatedGoal = {
+                    ...goal,
+                    resources: goal.resources.filter(r => r.id !== resourceId)
+                };
+                storedGoals[goalIndex] = updatedGoal;
+                await AsyncStorage.setItem(GOALS_KEY, JSON.stringify(storedGoals));
+            }
+        }
+    } catch (error) {
+        console.error('Error deleting resource:', error);
+    }
+};
+
 export const saveAvailability = async (schedule: WeeklySchedule) => {
     try {
         await AsyncStorage.setItem(AVAILABILITY_KEY, JSON.stringify(schedule));

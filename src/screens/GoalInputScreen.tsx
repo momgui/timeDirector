@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Platform, KeyboardAvoidingView, ScrollView, TextInput } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { DatePickerModal } from '../components/DatePickerModal';
 import { RootStackParamList, Step, SlotCategory } from '../types';
 import { generateSteps, generateQuestions, generateSubtasks } from '../services/ai';
 import { saveGoal, saveSteps } from '../services/storage';
@@ -42,17 +42,13 @@ const GoalInputScreen: React.FC<GoalInputScreenProps> = ({ navigation }) => {
     const [editingStep, setEditingStep] = useState<Step | null>(null);
     const [datePickerTarget, setDatePickerTarget] = useState<'goal' | 'step'>('goal');
 
-    const handleDateChange = (event: any, selectedDate?: Date) => {
-        const currentDate = selectedDate || (datePickerTarget === 'goal' ? date : (editingStep?.date || new Date()));
-        setShowDatePicker(Platform.OS === 'ios');
-
-        if (selectedDate) {
-            if (datePickerTarget === 'goal') {
-                setDate(currentDate);
-            } else if (editingStep) {
-                handleUpdateStep({ ...editingStep, date: currentDate });
-            }
+    const handleDateSelect = (selectedDate: Date) => {
+        if (datePickerTarget === 'goal') {
+            setDate(selectedDate);
+        } else if (editingStep) {
+            handleUpdateStep({ ...editingStep, date: selectedDate });
         }
+        setShowDatePicker(false);
     };
 
     const startQuestionnaire = async () => {
@@ -292,16 +288,13 @@ const GoalInputScreen: React.FC<GoalInputScreenProps> = ({ navigation }) => {
                         </>
                     )}
 
-                    {showDatePicker && (
-                        <DateTimePicker
-                            value={datePickerTarget === 'goal' ? date : (editingStep?.date || new Date())}
-                            mode="date"
-                            display="default"
-                            onChange={handleDateChange}
-                            minimumDate={new Date(Date.now() + 86400000)}
-                            themeVariant="dark"
-                        />
-                    )}
+                    <DatePickerModal
+                        visible={showDatePicker}
+                        onClose={() => setShowDatePicker(false)}
+                        onSelect={handleDateSelect}
+                        initialDate={datePickerTarget === 'goal' ? date : (editingStep?.date || new Date())}
+                        title={datePickerTarget === 'goal' ? "Set Goal Deadline" : "Set Step Deadline"}
+                    />
                 </ScrollView>
             </KeyboardAvoidingView>
         </Layout >

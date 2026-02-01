@@ -1,31 +1,47 @@
 import { Platform } from 'react-native';
 
 export const COLORS = {
-    // Base
-    background: '#0A0A0A', // Void Black
-    surface: '#161618', // Depth Grey
-    surfaceHighlight: '#1C1C1E', // Slightly lighter
+    // Base - "Terracotta Focus" -> "Earthen Focus"
+    background: '#1D1B1A', // Deep Void (Rich Dark Brown)
+    surface: '#2A2725', // Warm Obsidian
+    surfaceHighlight: '#363230', // Interaction Highlight
 
-    // Accents
-    primary: '#B4E3BB', // mint green
-    primaryDim: 'rgba(180, 227, 187, 0.15)', // mint green glow
-    secondary: '#32D74B', // Flow Green (Success/Completion)
-    accent: '#BF5AF2', // Lens Violet (Subtle gradients)
+    // Accents - "Terra Nova"
+    primary: '#E07A5F', // Terracotta Vibrant
+    primaryDim: 'rgba(224, 122, 95, 0.15)', // Terra Glow
+    secondary: '#81B29A', // Sage
+    accent: '#F2CC8F', // Sunset Sand
 
     // Text
-    textPrimary: '#FFFFFF',
-    textSecondary: 'rgba(235, 235, 245, 0.6)', // 60% White
-    textTertiary: 'rgba(235, 235, 245, 0.3)', // 30% White
-    textInverse: '#000000',
+    textPrimary: '#F4F1DE', // Eggshell (Soft White)
+    textSecondary: '#D0C9C0', // Warm Beige Grey
+    textTertiary: '#8D8680', // Discret
+    textInverse: '#1D1B1A', // Dark text on light/color backgrounds
 
     // Functional
-    success: '#32D74B',
-    error: '#FF453A',
-    warning: '#FFD60A',
+    success: '#81B29A',
+    error: '#E63946', // Ruby
+    warning: '#F4A261', // Burnt Orange
 
     // Borders
-    border: 'rgba(255, 255, 255, 0.1)',
-    borderHighlight: 'rgba(255, 255, 255, 0.2)',
+    border: '#403D3B',
+    borderHighlight: 'hsla(0, 0%, 100%, 0.30)',
+
+    // Shadows
+    shadow: '#000000',
+
+    // Categories
+    categories: {
+        work: '#E07A5F',        // Matches primary
+        projects: '#8B5CF6',    // Purple
+        personal: '#10B981',    // Green
+        study: '#F59E0B',       // Amber
+        anything: '#FFFFFF',    // White
+        blocked: '#E63946',     // Red
+        brainDump: '#F48C06',   // Orange
+        brainDumpDim: 'rgba(244, 140, 6, 0.15)',
+        successDim: 'rgba(129, 178, 154, 0.15)',
+    }
 };
 
 export const SPACING = {
@@ -40,16 +56,22 @@ export const SPACING = {
 };
 
 export const RADIUS = {
-    xs: 4,
-    s: 8,
-    m: 12, // Inner elements
-    l: 20, // Cards / Containers
-    xl: 32, // Modals
-    full: 999, // Pills / Circles
+    xs: 2,
+    s: 4,
+    m: 8,  // Standard Elements
+    l: 12, // Cards
+    xl: 16, // Modals
+    full: 999, // Pills
 };
 
 export const FONTS = {
-    family: Platform.select({ ios: 'System', android: 'Roboto', default: 'System' }),
+    // We will use the font names directly. 
+    // Requires loading 'Outfit' and 'Inter' in App.tsx
+    family: {
+        heading: 'Outfit',
+        body: 'Inter',
+        mono: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    },
     weights: {
         light: '300',
         regular: '400',
@@ -59,24 +81,25 @@ export const FONTS = {
     },
     sizes: {
         caption: 12,
-        body: 16, // Increased from 15
-        h3: 20,   // Increased from 18
-        h2: 28,   // Increased from 24
-        h1: 34,   // Increased from 32
-        hero: 48, // Increased from 40
+        body: 15,
+        h3: 18,
+        h2: 24,
+        h1: 32,
+        hero: 40,
     },
     lineHeights: {
-        caption: 18, // Increased from 16
-        body: 26,    // Increased from 24
-        h3: 28,      // Increased from 24
-        h2: 36,      // Increased from 32
-        h1: 44,      // Increased from 40
-        hero: 56,    // Increased from 48
+        caption: 16,
+        body: 24,
+        h3: 26,
+        h2: 32,
+        h1: 40,
+        hero: 48,
     },
     letterSpacing: {
+        tighter: -0.8,
         tight: -0.5,
         normal: 0,
-        wide: 0.8, // Increased from 0.5
+        wide: 0.5,
     },
 };
 
@@ -92,21 +115,21 @@ export const SHADOWS = {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
-        shadowRadius: 4,
+        shadowRadius: 4, // Gently increased
         elevation: 2,
     },
     medium: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
-        shadowRadius: 8,
+        shadowRadius: 12, // Softer drop
         elevation: 4,
     },
     glow: {
         shadowColor: COLORS.primary,
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.4,
-        shadowRadius: 12,
+        shadowRadius: 16, // Wider glow
         elevation: 6,
     },
 };
