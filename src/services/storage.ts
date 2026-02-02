@@ -87,7 +87,8 @@ export const updateGoal = async (updatedGoal: Goal) => {
 export const deleteStep = async (stepId: string) => {
     try {
         const storedSteps = await getSteps();
-        const updatedSteps = storedSteps.filter(s => s.id !== stepId);
+        // Remove the step itself AND any steps that are children of this step (milestone)
+        const updatedSteps = storedSteps.filter(s => s.id !== stepId && s.parentId !== stepId);
         await AsyncStorage.setItem(STEPS_KEY, JSON.stringify(updatedSteps));
     } catch (error) {
         console.error('Error deleting step:', error);

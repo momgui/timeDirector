@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     input: {
         flex: 1,
         color: COLORS.textPrimary,
-        fontFamily: FONTS.family,
+        fontFamily: FONTS.family.body,
         fontSize: FONTS.sizes.body,
         height: '100%',
     },

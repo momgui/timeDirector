@@ -4,7 +4,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { DatePickerModal } from '../components/DatePickerModal';
 import { RootStackParamList, Step, SlotCategory } from '../types';
 import { generateSteps, generateQuestions, generateSubtasks } from '../services/ai';
-import { saveGoal, saveSteps } from '../services/storage';
+import { saveGoal, saveSteps, getGoals, updateGoal } from '../services/storage';
 import { v4 as uuidv4 } from 'uuid';
 import 'react-native-get-random-values';
 import { Layout } from '../design-system/components/Layout';
@@ -14,11 +14,18 @@ import { Button } from '../design-system/components/Button';
 import { TaskReviewList } from '../components/TaskReviewList';
 import { COLORS, SPACING } from '../design-system/tokens';
 
+import { RouteProp, useRoute } from '@react-navigation/native';
+
+type GoalInputScreenRouteProp = RouteProp<RootStackParamList, 'GoalInput'>;
+
 type GoalInputScreenProps = {
     navigation: NativeStackNavigationProp<RootStackParamList, 'GoalInput'>;
 };
 
 const GoalInputScreen: React.FC<GoalInputScreenProps> = ({ navigation }) => {
+    const route = useRoute<GoalInputScreenRouteProp>();
+    const { goalId } = route.params || {};
+
     const [goal, setGoal] = useState('');
     const [date, setDate] = useState(() => {
         const d = new Date();
@@ -27,6 +34,47 @@ const GoalInputScreen: React.FC<GoalInputScreenProps> = ({ navigation }) => {
     });
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    // Load existing goal if goalId is present
+    React.useEffect(() => {
+        if (goalId) {
+            const loadGoal = async () => {
+                const goals = await getGoals();
+                const foundGoal = goals.find(g => g.id === goalId);
+                if (foundGoal) {
+                    setGoal(foundGoal.title);
+                    setDate(new Date(foundGoal.deadline));
+                    setCategory(foundGoal.category);
+
+                    if (foundGoal.context) {
+                        setContext(foundGoal.context);
+                        setLoading(true);
+                        try {
+                            // Automatically start questionnaire if context exists
+                            // Note: We use foundGoal values directly as state updates (setGoal, setDate) might not be immediate for use in this same function scope
+                            generateQuestions(foundGoal.title, new Date(foundGoal.deadline), foundGoal.context)
+                                .then(generatedQuestions => {
+                                    setQuestions(generatedQuestions);
+                                    setMode('questionnaire');
+                                    setLoading(false);
+                                })
+                                .catch(error => {
+                                    console.error(error);
+                                    setLoading(false);
+                                    setMode('context-input'); // Fallback
+                                });
+                        } catch (e) {
+                            setLoading(false);
+                            setMode('context-input');
+                        }
+                    } else {
+                        setMode('context-input');
+                    }
+                }
+            };
+            loadGoal();
+        }
+    }, [goalId]);
 
     // Questionnaire state
     const [mode, setMode] = useState<'input' | 'context-input' | 'questionnaire' | 'review'>('input');
@@ -115,21 +163,36 @@ const GoalInputScreen: React.FC<GoalInputScreenProps> = ({ navigation }) => {
     const handleConfirmPlan = async () => {
         setLoading(true);
         try {
-            const newGoal = {
-                id: uuidv4(),
-                title: goal,
-                deadline: date,
-                createdAt: new Date(),
-                isCompleted: false,
-                category: category,
-            };
+            const targetGoalId = goalId || uuidv4();
+
+            if (!goalId) {
+                // Create new goal if not editing existing
+                const newGoal = {
+                    id: targetGoalId,
+                    title: goal,
+                    deadline: date,
+                    createdAt: new Date(),
+                    isCompleted: false,
+                    category: category,
+                };
+                await saveGoal(newGoal);
+            } else {
+                // Update existing goal deadline/title if changed?
+                // For now, assume we just want to add steps. 
+                // But maybe we should update the goal details too.
+                const goals = await getGoals();
+                const foundGoal = goals.find(g => g.id === goalId);
+                if (foundGoal) {
+                    await updateGoal({ ...foundGoal, category: category || foundGoal.category });
+                }
+            }
 
             // Generate subtasks for each milestone
             const allSteps: Step[] = [];
 
             for (const milestone of proposedSteps) {
                 // Add the milestone itself
-                allSteps.push({ ...milestone, goalId: newGoal.id });
+                allSteps.push({ ...milestone, goalId: targetGoalId });
 
                 // Generate subtasks
                 try {
@@ -142,16 +205,21 @@ const GoalInputScreen: React.FC<GoalInputScreenProps> = ({ navigation }) => {
                     );
 
                     // Add subtasks with goalId
-                    allSteps.push(...subtasks.map(s => ({ ...s, goalId: newGoal.id })));
+                    allSteps.push(...subtasks.map(s => ({ ...s, goalId: targetGoalId })));
                 } catch (err) {
                     console.error('Failed to generate subtasks for milestone:', milestone.title, err);
                 }
             }
 
-            await saveGoal(newGoal);
+            // We append steps. 
+            // NOTE: saveSteps typically appends to the list in storage.
             await saveSteps(allSteps);
 
-            navigation.navigate('Dashboard');
+            if (goalId) {
+                navigation.goBack();
+            } else {
+                navigation.navigate('Dashboard');
+            }
         } catch (error) {
             console.error(error);
         } finally {
@@ -210,7 +278,7 @@ const GoalInputScreen: React.FC<GoalInputScreenProps> = ({ navigation }) => {
                     ) : mode === 'context-input' ? (
                         <>
                             <Typography variant="h1" color={COLORS.primary} style={styles.title}>
-                                Any specific context?
+                                {goalId ? `Planning: ${goal}` : "Any specific context?"}
                             </Typography>
 
                             <Typography variant="body" color={COLORS.textSecondary} style={{ marginBottom: SPACING.l }}>
@@ -310,6 +378,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingVertical: SPACING.xl,
         paddingHorizontal: SPACING.l,
+        paddingBottom: 200, // Ensure space for keyboard/buttons
     },
     title: {
         marginBottom: SPACING.xl,
@@ -345,7 +414,7 @@ const styles = StyleSheet.create({
         borderRadius: 100,
     },
     submitButton: {
-        marginTop: 'auto',
+        marginTop: SPACING.l,
     },
 });
 

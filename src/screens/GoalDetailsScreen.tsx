@@ -7,6 +7,7 @@ import { Layout } from '../design-system/components/Layout';
 import { Typography } from '../design-system/components/Typography';
 import { Card } from '../design-system/components/Card';
 import { Button } from '../design-system/components/Button';
+import { Input } from '../design-system/components/Input';
 import { EmptyState } from '../design-system/components/EmptyState';
 import { COLORS, SPACING, RADIUS } from '../design-system/tokens';
 import { RootStackParamList, Goal, Step, GoalResource, SlotCategory } from '../types';
@@ -48,6 +49,20 @@ const TrashIcon = ({ color = COLORS.error, size = 18 }: { color?: string; size?:
     </Svg>
 );
 
+const WandIcon = ({ color = COLORS.primary, size = 20 }: { color?: string; size?: number }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <Path d="M15 4V2" />
+        <Path d="M15 16v-2" />
+        <Path d="M8 9h2" />
+        <Path d="M20 9h2" />
+        <Path d="M17.8 11.8L19 13" />
+        <Path d="M15 9l-1 1" />
+        <Path d="M17.8 6.2L19 5" />
+        <Path d="M3 21l9-9" />
+        <Path d="M12.2 6.2L11 5" />
+    </Svg>
+);
+
 const GoalDetailsScreen = () => {
     const navigation = useNavigation<GoalDetailsScreenNavigationProp>();
     const route = useRoute<GoalDetailsScreenRouteProp>();
@@ -58,6 +73,7 @@ const GoalDetailsScreen = () => {
     const [activeTab, setActiveTab] = useState<'TASKS' | 'CONTEXT'>('TASKS');
     const [createTaskVisible, setCreateTaskVisible] = useState(false);
     const [addResourceVisible, setAddResourceVisible] = useState(false);
+    const [contextText, setContextText] = useState('');
 
     // Resource Form State
     const [newResourceTitle, setNewResourceTitle] = useState('');
@@ -68,6 +84,9 @@ const GoalDetailsScreen = () => {
         const allGoals = await getGoals();
         const foundGoal = allGoals.find(g => g.id === goalId);
         setGoal(foundGoal || null);
+        if (foundGoal) {
+            setContextText(foundGoal.context || '');
+        }
 
         const allSteps = await getSteps();
         const goalSteps = allSteps.filter(s => s.goalId === goalId);
@@ -83,6 +102,14 @@ const GoalDetailsScreen = () => {
         const updatedGoal = { ...goal, category };
         await updateGoal(updatedGoal);
         setGoal(updatedGoal);
+    };
+
+    const handleSaveContext = async () => {
+        if (!goal) return;
+        const updatedGoal = { ...goal, context: contextText };
+        await updateGoal(updatedGoal);
+        setGoal(updatedGoal);
+        // Optional: show a toast or feedback
     };
 
     const handleDeleteGoal = async () => {
@@ -256,7 +283,7 @@ const GoalDetailsScreen = () => {
                             <EmptyState
                                 title="No tasks yet"
                                 description="Break down your goal into manageable steps."
-                                action={{ label: "Add First Task", onPress: () => setCreateTaskVisible(true) }}
+                                action={{ label: "✨ Decompose with AI", onPress: () => navigation.navigate('GoalInput', { goalId }) }}
                             />
                         ) : (
                             steps.map((step, index) => (
@@ -280,16 +307,40 @@ const GoalDetailsScreen = () => {
                             ))
                         )}
                         {steps.length > 0 && (
-                            <Button
-                                title="+ Add Task"
-                                variant="outline"
-                                onPress={() => setCreateTaskVisible(true)}
-                                style={{ marginTop: SPACING.m }}
-                            />
+                            <View style={{ gap: SPACING.m, marginTop: SPACING.m }}>
+                                <Button
+                                    title="+ Add Task"
+                                    variant="outline"
+                                    onPress={() => setCreateTaskVisible(true)}
+                                />
+                                <Button
+                                    title="✨ AI Plan / Optimize"
+                                    variant="ghost"
+                                    onPress={() => navigation.navigate('GoalInput', { goalId })}
+                                />
+                            </View>
                         )}
                     </View>
                 ) : (
                     <View style={styles.tabContent}>
+                        <View style={{ marginBottom: SPACING.xl }}>
+                            <Typography variant="h3" weight="semibold" style={{ marginBottom: SPACING.m }}>
+                                Context & Constraints
+                            </Typography>
+                            <Input
+                                placeholder="Add context, constraints, or preferences (e.g. 'Budget $500', 'I'm a beginner'). This will be used by AI to generate better tasks."
+                                value={contextText}
+                                onChangeText={setContextText}
+                                multiline
+                                style={{ minHeight: 120, textAlignVertical: 'top', marginBottom: SPACING.m }}
+                                onBlur={handleSaveContext}
+                            />
+                        </View>
+
+                        <Typography variant="h3" weight="semibold" style={{ marginBottom: SPACING.m, marginTop: SPACING.xl }}>
+                            Resources
+                        </Typography>
+
                         {/* Resources List */}
                         {(!goal.resources || goal.resources.length === 0) ? (
                             <EmptyState
@@ -406,7 +457,7 @@ const GoalDetailsScreen = () => {
                     </Card>
                 </KeyboardAvoidingView>
             </Modal>
-        </Layout>
+        </Layout >
     );
 };
 
@@ -430,6 +481,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: SPACING.l,
+        paddingBottom: 100, // Add extra padding for keyboard
     },
     titleSection: {
         marginBottom: SPACING.l,

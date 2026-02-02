@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
         padding: SPACING.xs,
     },
     titleInput: {
-        fontFamily: FONTS.family,
+        fontFamily: FONTS.family.heading,
         fontSize: FONTS.sizes.h3,
         color: COLORS.textPrimary,
         marginBottom: SPACING.m,

@@ -21,6 +21,7 @@ export interface Goal {
     isCompleted: boolean;
     category?: SlotCategory;
     resources?: GoalResource[];
+    context?: string;
 }
 
 export interface Step {
@@ -58,6 +59,6 @@ export type WeeklySchedule = Record<string, DaySchedule>;
 export type RootStackParamList = {
     Login: undefined;
     Dashboard: undefined;
-    GoalInput: undefined;
+    GoalInput: { goalId?: string };
     GoalDetails: { goalId: string };
 };

@@ -5,7 +5,7 @@ import Svg, { Path, Rect, Line } from 'react-native-svg';
 import { signOut, getCurrentUser } from '../services/auth';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, Goal, Step, WeeklySchedule, SlotCategory } from '../types';
-import { getGoals, getSteps, updateStep, deleteGoal, deleteStep, updateGoal, saveSteps, getAvailability, saveAvailability } from '../services/storage';
+import { getGoals, getSteps, updateStep, deleteGoal, deleteStep, updateGoal, saveSteps, getAvailability, saveAvailability, saveGoal } from '../services/storage';
 import { useIsFocused } from '@react-navigation/native';
 import { Layout } from '../design-system/components/Layout';
 import { Typography } from '../design-system/components/Typography';
@@ -18,6 +18,7 @@ import { FadeIn } from '../design-system/components/FadeIn';
 import { WeeklyCalendar } from '../components/WeeklyCalendar';
 import { RenameModal } from '../components/RenameModal';
 import { CreateTaskModal } from '../components/CreateTaskModal';
+import { CreateGoalModal } from '../components/CreateGoalModal';
 import { AvailabilityModal } from '../components/AvailabilityModal';
 import { MilestoneDetailModal } from '../components/MilestoneDetailModal';
 import { CreationMenuModal } from '../components/CreationMenuModal';
@@ -59,6 +60,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     const [selectedMilestone, setSelectedMilestone] = useState<Step | null>(null);
     const [renameModalVisible, setRenameModalVisible] = useState(false);
     const [createTaskModalVisible, setCreateTaskModalVisible] = useState(false);
+    const [createGoalModalVisible, setCreateGoalModalVisible] = useState(false);
     const [brainDumpModalVisible, setBrainDumpModalVisible] = useState(false);
     const [creationMenuVisible, setCreationMenuVisible] = useState(false);
     const [availabilityModalVisible, setAvailabilityModalVisible] = useState(false);
@@ -129,10 +131,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
 
                 // 1. Calendar
                 const calendarList = await listCalendars(accessToken);
+                const filteredCalendars = calendarList.filter(calendar => calendar.summary.toLowerCase() !== 'numéros de semaine');
                 let allEvents: any[] = [];
 
                 // Fetch events for each calendar
-                for (const calendar of calendarList) {
+                for (const calendar of filteredCalendars) {
                     const events = await listEvents(accessToken, calendar.id, startOfRange.toISOString(), endOfRange.toISOString());
                     allEvents = [...allEvents, ...events];
                 }
@@ -248,6 +251,23 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         };
         await saveSteps([newStep]);
         loadData();
+    };
+
+    const handleCreateGoal = async (title: string, deadline: Date, category?: SlotCategory) => {
+        const newGoal: Goal = {
+            id: uuidv4(),
+            title,
+            deadline,
+            createdAt: new Date(),
+            isCompleted: false,
+            category: category || 'PERSONAL',
+            resources: []
+        };
+        await saveGoal(newGoal);
+        setCreateGoalModalVisible(false);
+        // Refresh data just in case, though navigation might trigger it via useIsFocused but let's be safe
+        loadData();
+        navigation.navigate('GoalDetails', { goalId: newGoal.id });
     };
 
     const handleSignOut = async () => {
@@ -692,7 +712,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     <EmptyState
                         title="No active goals"
                         description="Start your journey by creating your first goal."
-                        action={{ label: "Create Goal", onPress: () => navigation.navigate('GoalInput') }}
+                        action={{ label: "Create Goal", onPress: () => setCreateGoalModalVisible(true) }}
                         style={{ marginHorizontal: SPACING.l }}
                     />
                 ) : (
@@ -903,7 +923,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 onClose={() => setCreationMenuVisible(false)}
                 onCreateGoal={() => {
                     setCreationMenuVisible(false);
-                    navigation.navigate('GoalInput');
+                    setCreateGoalModalVisible(true);
                 }}
                 onCreateTask={() => {
                     setCreationMenuVisible(false);
@@ -913,6 +933,12 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     setCreationMenuVisible(false);
                     setBrainDumpModalVisible(true);
                 }}
+            />
+
+            <CreateGoalModal
+                visible={createGoalModalVisible}
+                onClose={() => setCreateGoalModalVisible(false)}
+                onSave={handleCreateGoal}
             />
 
             <BrainDumpModal

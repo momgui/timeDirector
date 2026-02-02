@@ -210,20 +210,24 @@ export const generateSteps = async (goalTitle: string, deadline: Date, contextAn
         const allSteps: Step[] = [];
 
         if (autoSplit) {
-            for (const milestone of steps) {
+            for (let i = 0; i < steps.length; i++) {
+                const milestone = steps[i];
                 allSteps.push(milestone);
 
-                // Generate subtasks immediately
-                const subtasks = await generateSubtasks(
-                    milestone.title,
-                    milestone.description || '',
-                    milestone.estimatedMinutes || 60,
-                    milestone.id,
-                    parsedData.category as SlotCategory
-                );
-
-                allSteps.push(...subtasks);
+                if (i === 0) {
+                    const subtasks = await splitMilestone(
+                        milestone.title,
+                        milestone.description || '',
+                        milestone.estimatedMinutes || 60,
+                        parsedData.category,
+                        milestone.id,
+                        'ai',
+                        milestone.effort || 2
+                    );
+                    allSteps.push(...subtasks);
+                }
             }
+
         } else {
             allSteps.push(...steps);
         }
