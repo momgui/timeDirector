@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle, StatusBar } from 'react-native';
+import { View, StyleSheet, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, SPACING } from '../tokens';
+import { SPACING } from '../tokens';
+import { useTheme } from '../../theme';
+import { MiniPlayer } from '../../components/MiniPlayer';
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -14,12 +16,14 @@ export const Layout: React.FC<LayoutProps> = ({
     style,
     noPadding = false,
 }) => {
+    const { colors } = useTheme();
+
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-            <View style={[styles.container, !noPadding && styles.padding, style]}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+            <View style={[styles.container, { backgroundColor: colors.background }, !noPadding && styles.padding, style]}>
                 {children}
             </View>
+            <MiniPlayer />
         </SafeAreaView>
     );
 };
@@ -27,13 +31,13 @@ export const Layout: React.FC<LayoutProps> = ({
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: COLORS.background,
     },
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        // backgroundColor handled dynamically
     },
     padding: {
         paddingHorizontal: SPACING.l,
     },
 });
+

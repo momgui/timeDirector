@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, TextProps, StyleSheet, TextStyle, StyleProp } from 'react-native';
-import { COLORS, FONTS } from '../tokens';
+import { FONTS } from '../tokens';
+import { useTheme } from '../../theme';
 
 interface TypographyProps extends TextProps {
     variant?: 'hero' | 'h1' | 'h2' | 'h3' | 'body' | 'caption';
@@ -14,13 +15,16 @@ interface TypographyProps extends TextProps {
 export const Typography: React.FC<TypographyProps> = ({
     children,
     variant = 'body',
-    color = COLORS.textPrimary,
+    color,
     weight,
     align = 'left',
     mono = false,
     style,
     ...props
 }) => {
+    const { colors } = useTheme();
+    const textColor = color || colors.textPrimary;
+
     const getVariantStyle = () => {
         switch (variant) {
             case 'hero':
@@ -39,7 +43,7 @@ export const Typography: React.FC<TypographyProps> = ({
     };
 
     const baseStyle: TextStyle = {
-        color,
+        color: textColor,
         textAlign: align,
         fontFamily: mono
             ? FONTS.family.mono

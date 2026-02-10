@@ -25,6 +25,8 @@ interface MilestoneDetailModalProps {
     onToggleSubtask: (step: Step) => void;
     onGenerateSubtasks: (subtasks: Step[]) => void;
     onOpenSubMilestone: (step: Step) => void;
+    goalTitle?: string;
+    goalContext?: string;
 }
 
 const ClockIcon = ({ color = COLORS.textSecondary, size = 16 }: { color?: string; size?: number }) => (
@@ -78,6 +80,8 @@ export const MilestoneDetailModal: React.FC<MilestoneDetailModalProps> = ({
     onToggleSubtask,
     onGenerateSubtasks,
     onOpenSubMilestone,
+    goalTitle = '',
+    goalContext = '',
 }) => {
     const [smartSplitVisible, setSmartSplitVisible] = useState(false);
 
@@ -286,6 +290,8 @@ export const MilestoneDetailModal: React.FC<MilestoneDetailModalProps> = ({
                     onGenerateSubtasks(newSteps);
                     setSmartSplitVisible(false);
                 }}
+                goalTitle={goalTitle}
+                goalContext={goalContext}
             />
         </Modal >
     );

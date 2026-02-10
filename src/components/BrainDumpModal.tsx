@@ -3,7 +3,8 @@ import { Modal, View, StyleSheet, TouchableOpacity, TextInput } from 'react-nati
 import { Card } from '../design-system/components/Card';
 import { Typography } from '../design-system/components/Typography';
 import { Button } from '../design-system/components/Button';
-import { COLORS, SPACING, RADIUS } from '../design-system/tokens';
+import { SPACING, RADIUS } from '../design-system/tokens';
+import { useTheme } from '../theme';
 
 interface BrainDumpModalProps {
     visible: boolean;
@@ -16,6 +17,7 @@ export const BrainDumpModal: React.FC<BrainDumpModalProps> = ({
     onClose,
     onSave,
 }) => {
+    const { colors } = useTheme();
     const [text, setText] = useState('');
 
     const handleSave = () => {
@@ -52,10 +54,10 @@ export const BrainDumpModal: React.FC<BrainDumpModalProps> = ({
                 <Card variant="solid" padding="l" style={styles.container}>
                     <View style={styles.headerRow}>
                         <View>
-                            <Typography variant="h2" weight="bold" color={COLORS.textPrimary}>
+                            <Typography variant="h2" weight="bold" color={colors.textPrimary}>
                                 Brain Dump 🧠
                             </Typography>
-                            <Typography variant="caption" color={COLORS.textSecondary}>
+                            <Typography variant="caption" color={colors.textSecondary}>
                                 One task per line
                             </Typography>
                         </View>
@@ -74,8 +76,14 @@ export const BrainDumpModal: React.FC<BrainDumpModalProps> = ({
                         onChangeText={setText}
                         autoFocus
                         multiline
-                        style={styles.textArea}
-                        placeholderTextColor={COLORS.textTertiary}
+                        style={[
+                            styles.textArea,
+                            {
+                                backgroundColor: colors.surfaceHighlight,
+                                color: colors.textPrimary
+                            }
+                        ]}
+                        placeholderTextColor={colors.textTertiary}
                         textAlignVertical="top"
                     />
 
@@ -115,10 +123,8 @@ const styles = StyleSheet.create({
     },
     textArea: {
         minHeight: 200,
-        backgroundColor: COLORS.surfaceHighlight,
         borderRadius: RADIUS.m,
         padding: SPACING.m,
-        color: COLORS.textPrimary,
         fontSize: 16,
         marginBottom: SPACING.l,
     },

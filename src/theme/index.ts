@@ -1,16 +1,19 @@
 import { COLORS as DS_COLORS, SPACING as DS_SPACING, FONTS as DS_FONTS, RADIUS as DS_RADIUS, SHADOWS as DS_SHADOWS } from '../design-system/tokens';
+import { ThemeProvider, useTheme } from '../context/ThemeContext';
 
-// Re-exporting tokens to maintain backward compatibility where needed, 
-// but encouraging direct usage of design system components.
+export { ThemeProvider, useTheme };
 
+// Legacy exports for backward compatibility
+// Components should migrate to useTheme() hook
 export const COLORS = {
     ...DS_COLORS,
-    // Map old keys if necessary for gradual migration
+    // Aliases
+    text: DS_COLORS.textPrimary,
     background: DS_COLORS.background,
     surface: DS_COLORS.surface,
     primary: DS_COLORS.primary,
     secondary: DS_COLORS.secondary,
-    text: DS_COLORS.textPrimary,
+    textPrimary: DS_COLORS.textPrimary,
     textSecondary: DS_COLORS.textSecondary,
     success: DS_COLORS.success,
     error: DS_COLORS.error,
@@ -25,3 +28,4 @@ export const SIZES = {
     icon: 24,
 };
 export const SHADOWS = DS_SHADOWS;
+

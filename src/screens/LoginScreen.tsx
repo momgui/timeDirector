@@ -1,51 +1,63 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import { Layout } from '../design-system/components/Layout';
-import { saveLoginState, signIn } from '../services/auth';
-import { Typography } from '../design-system/components/Typography';
-import { Input } from '../design-system/components/Input';
-import { Button } from '../design-system/components/Button';
-import { Card } from '../design-system/components/Card';
-import { COLORS, SPACING } from '../design-system/tokens';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Layout } from '../design-system/components/Layout';
+import { saveLoginState, signIn, signInAnonymously } from '../services/auth';
+import { Typography } from '../design-system/components/Typography';
+import { Button } from '../design-system/components/Button';
+import { useTheme } from '../theme';
+import { SPACING } from '../design-system/tokens';
+import { RootStackParamList } from '../types';
 
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import { GOOGLE_WEB_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID } from '../config';
-
-WebBrowser.maybeCompleteAuthSession();
+type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
 export default function LoginScreen() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const { colors } = useTheme();
+    const navigation = useNavigation<LoginScreenNavigationProp>();
     const [loading, setLoading] = useState(false);
-    const navigation = useNavigation();
 
-    const [request, response, promptAsync] = Google.useAuthRequest({
-        webClientId: GOOGLE_WEB_CLIENT_ID,
-        androidClientId: GOOGLE_ANDROID_CLIENT_ID,
-        scopes: ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/tasks'],
-    });
-
-    React.useEffect(() => {
-        if (response?.type === 'success') {
-            const { authentication } = response;
-            // Here you would typically use the token to fetch user details or just consider them logged in
-            // For now, we'll just save the login state
-            saveLoginState().then(() => {
-                navigation.navigate('Dashboard' as never);
-            });
-        }
-    }, [response]);
-
-    const handleLogin = async () => {
+    const handleSignIn = async () => {
         setLoading(true);
-        // Simulate API call
-        setTimeout(async () => {
-            await saveLoginState();
+        try {
+            const userInfo = await signIn();
+            if (userInfo) {
+                await saveLoginState();
+                // Check if user has completed onboarding
+                const hasOnboarded = await AsyncStorage.getItem('HAS_COMPLETED_ONBOARDING');
+                if (hasOnboarded === 'true') {
+                    navigation.replace('Dashboard');
+                } else {
+                    navigation.replace('Onboarding');
+                }
+            }
+        } catch (error) {
+            console.error('Sign in error:', error);
+        } finally {
             setLoading(false);
-            navigation.navigate('Dashboard' as never);
-        }, 1500);
+        }
+    };
+
+    const handleGuestSignIn = async () => {
+        setLoading(true);
+        try {
+            const userInfo = await signInAnonymously();
+            if (userInfo) {
+                await saveLoginState();
+                // Check if user has completed onboarding
+                const hasOnboarded = await AsyncStorage.getItem('HAS_COMPLETED_ONBOARDING');
+                if (hasOnboarded === 'true') {
+                    navigation.replace('Dashboard');
+                } else {
+                    navigation.replace('Onboarding');
+                }
+            }
+        } catch (error) {
+            console.error('Guest sign in error:', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -56,28 +68,24 @@ export default function LoginScreen() {
                     style={styles.keyboardView}
                 >
                     <View style={styles.header}>
-                        <Typography variant="hero" color={COLORS.primary} align="center" style={styles.title}>
+                        <Typography variant="hero" color={colors.primary} align="center" style={styles.title}>
                             Eôs
                         </Typography>
-                        <Typography variant="body" color={COLORS.textSecondary} align="center">
+                        <Typography variant="body" color={colors.textSecondary} align="center">
                             Master your time, master your life.
                         </Typography>
                     </View>
                     <Button
                         title="Sign In with Google"
-                        onPress={async () => {
-                            setLoading(true);
-                            if (Platform.OS === 'web') {
-                                await promptAsync();
-                            } else {
-                                const userInfo = await signIn();
-                                if (userInfo) {
-                                    await saveLoginState();
-                                    navigation.navigate('Dashboard' as never);
-                                }
-                            }
-                            setLoading(false);
-                        }}
+                        onPress={handleSignIn}
+                        loading={loading}
+                        fullWidth
+                    />
+                    <View style={{ height: SPACING.m }} />
+                    <Button
+                        title="Continue as Guest"
+                        onPress={handleGuestSignIn}
+                        variant="ghost"
                         loading={loading}
                         fullWidth
                     />
@@ -98,12 +106,4 @@ const styles = StyleSheet.create({
     title: {
         marginBottom: SPACING.s,
     },
-    formCard: {
-        width: '100%',
-    },
-    actions: {
-        marginTop: SPACING.l,
-        gap: SPACING.m,
-    },
-
 });

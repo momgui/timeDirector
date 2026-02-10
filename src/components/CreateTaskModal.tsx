@@ -6,16 +6,17 @@ import { Typography } from '../design-system/components/Typography';
 import { Button } from '../design-system/components/Button';
 import { Input } from '../design-system/components/Input';
 import { Slider } from './Slider';
-import { COLORS, SPACING, RADIUS } from '../design-system/tokens';
+import { SPACING, RADIUS } from '../design-system/tokens';
 import { SlotCategory } from '../types';
+import { useTheme } from '../theme';
 
-const getCategoryColor = (category: SlotCategory) => {
+const getCategoryColor = (category: SlotCategory, categoriesColors: any) => {
     switch (category) {
-        case ' WORK ': return COLORS.categories.work;
-        case 'PROJECTS': return COLORS.categories.projects;
-        case 'PERSONAL': return COLORS.categories.personal;
-        case 'STUDY': return COLORS.categories.study;
-        default: return COLORS.textSecondary;
+        case ' WORK ': return categoriesColors.work;
+        case 'PROJECTS': return categoriesColors.projects;
+        case 'PERSONAL': return categoriesColors.personal;
+        case 'STUDY': return categoriesColors.study;
+        default: return categoriesColors.work; // Fallback
     }
 };
 
@@ -25,7 +26,11 @@ interface CreateTaskModalProps {
     onSave: (title: string, date: Date, description?: string, effort?: number, category?: SlotCategory) => void;
     initialDate?: Date;
     initialCategory?: SlotCategory;
+    initialTitle?: string;
+    initialDescription?: string;
+    initialEffort?: number;
     title?: string;
+    saveLabel?: string;
 }
 
 const CATEGORIES: SlotCategory[] = [' WORK ', 'PROJECTS', 'PERSONAL', 'STUDY'];
@@ -36,22 +41,30 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     onSave,
     initialDate = new Date(),
     initialCategory,
-    title = "New Task"
+    initialTitle = '',
+    initialDescription = '',
+    initialEffort = 1,
+    title = "New Task",
+    saveLabel = "Create Task"
 }) => {
-    const [taskTitle, setTaskTitle] = useState('');
-    const [description, setDescription] = useState('');
+    const { colors } = useTheme();
+    const [taskTitle, setTaskTitle] = useState(initialTitle);
+    const [description, setDescription] = useState(initialDescription);
     const [date, setDate] = useState(initialDate);
-    const [effort, setEffort] = useState(1);
+    const [effort, setEffort] = useState(initialEffort);
     const [category, setCategory] = useState<SlotCategory | undefined>(initialCategory);
     const [showDatePicker, setShowDatePicker] = useState(false);
 
-    // Reset category when initialCategory changes or modal opens
+    // Reset state when visible or initial props change
     React.useEffect(() => {
         if (visible) {
-            setCategory(initialCategory || 'PERSONAL');
+            setTaskTitle(initialTitle);
+            setDescription(initialDescription);
             setDate(initialDate);
+            setEffort(initialEffort);
+            setCategory(initialCategory || 'PERSONAL');
         }
-    }, [visible, initialCategory, initialDate]);
+    }, [visible, initialTitle, initialDescription, initialDate, initialEffort, initialCategory]);
 
     const handleCycleCategory = () => {
         const currentCategory = category || 'PERSONAL';
@@ -74,6 +87,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         setShowDatePicker(false);
     };
 
+    const categoryColor = getCategoryColor(category || 'PERSONAL', colors.categories);
+
     return (
         <Modal
             visible={visible}
@@ -86,7 +101,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
                 <Card variant="solid" padding="l" style={styles.container}>
                     <View style={styles.headerRow}>
-                        <Typography variant="h2" weight="bold" color={COLORS.textPrimary} style={styles.header}>
+                        <Typography variant="h2" weight="bold" color={colors.textPrimary} style={styles.header}>
                             {title}
                         </Typography>
                         <Button
@@ -117,21 +132,21 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                     />
 
                     <View style={styles.categoryContainer}>
-                        <Typography variant="caption" color={COLORS.textSecondary} style={styles.label}>
+                        <Typography variant="caption" color={colors.textSecondary} style={styles.label}>
                             CATEGORY
                         </Typography>
                         <TouchableOpacity
-                            style={[styles.categoryPill, { borderColor: getCategoryColor(category || 'PERSONAL') }]}
+                            style={[styles.categoryPill, { borderColor: categoryColor }]}
                             onPress={handleCycleCategory}
                         >
-                            <Typography variant="caption" color={getCategoryColor(category || 'PERSONAL')} weight="bold">
+                            <Typography variant="caption" color={categoryColor} weight="bold">
                                 {category || 'PERSONAL'}
                             </Typography>
                         </TouchableOpacity>
                     </View>
 
                     <View style={styles.dateContainer}>
-                        <Typography variant="caption" color={COLORS.textSecondary} style={styles.label}>
+                        <Typography variant="caption" color={colors.textSecondary} style={styles.label}>
                             DUE DATE
                         </Typography>
                         <Button
@@ -143,7 +158,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                     </View>
 
                     <View style={styles.effortContainer}>
-                        <Typography variant="caption" color={COLORS.textSecondary} style={styles.label}>
+                        <Typography variant="caption" color={colors.textSecondary} style={styles.label}>
                             EFFORT LEVEL
                         </Typography>
                         <Slider
@@ -163,7 +178,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                             style={{ flex: 1, marginRight: SPACING.s }}
                         />
                         <Button
-                            title="Create Task"
+                            title={saveLabel}
                             variant="primary"
                             onPress={handleSave}
                             disabled={!taskTitle.trim()}

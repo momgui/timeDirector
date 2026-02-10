@@ -18,6 +18,8 @@ interface SmartSplitModalProps {
     milestone: Step;
     onClose: () => void;
     onSave: (newSteps: Step[]) => void;
+    goalTitle?: string;
+    goalContext?: string;
 }
 
 export const SmartSplitModal: React.FC<SmartSplitModalProps> = ({
@@ -25,13 +27,15 @@ export const SmartSplitModal: React.FC<SmartSplitModalProps> = ({
     milestone,
     onClose,
     onSave,
+    goalTitle = '',
+    goalContext = '',
 }) => {
     const [loading, setLoading] = useState(false);
     const [proposedSteps, setProposedSteps] = useState<Step[]>([]);
     const [editingStep, setEditingStep] = useState<Step | null>(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [hasGenerated, setHasGenerated] = useState(false);
-    const [splitMode, setSplitMode] = useState<'ai' | 'generic'>('ai');
+    const [error, setError] = useState<string | null>(null);
 
     // Auto-generate on open
     React.useEffect(() => {
@@ -42,6 +46,7 @@ export const SmartSplitModal: React.FC<SmartSplitModalProps> = ({
 
     const handleGenerate = async () => {
         setLoading(true);
+        setError(null);
         try {
             const steps = await splitMilestone(
                 milestone.title,
@@ -49,14 +54,17 @@ export const SmartSplitModal: React.FC<SmartSplitModalProps> = ({
                 milestone.estimatedMinutes || 60,
                 milestone.category || ' WORK ',
                 milestone.id,
-                splitMode,
-                milestone.effort || 2
+                'ai',
+                milestone.effort || 2,
+                goalTitle,
+                goalContext
             );
 
             setProposedSteps(steps);
             setHasGenerated(true);
         } catch (error) {
             console.error(error);
+            setError("Failed to generate tasks. Please check your internet connection.");
         } finally {
             setLoading(false);
         }
@@ -113,33 +121,6 @@ export const SmartSplitModal: React.FC<SmartSplitModalProps> = ({
                     <View style={{ width: 60 }} />
                 </View>
 
-                <View style={styles.modeSelector}>
-                    <TouchableOpacity
-                        style={[styles.modeButton, splitMode === 'ai' && styles.modeButtonActive]}
-                        onPress={() => setSplitMode('ai')}
-                    >
-                        <Typography
-                            variant="caption"
-                            weight="bold"
-                            color={splitMode === 'ai' ? COLORS.background : COLORS.textSecondary}
-                        >
-                            ✨ AI Smart Split
-                        </Typography>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.modeButton, splitMode === 'generic' && styles.modeButtonActive]}
-                        onPress={() => setSplitMode('generic')}
-                    >
-                        <Typography
-                            variant="caption"
-                            weight="bold"
-                            color={splitMode === 'generic' ? COLORS.background : COLORS.textSecondary}
-                        >
-                            🔢 Generic Split
-                        </Typography>
-                    </TouchableOpacity>
-                </View>
-
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     style={styles.keyboardView}
@@ -153,6 +134,19 @@ export const SmartSplitModal: React.FC<SmartSplitModalProps> = ({
                                 <Typography variant="body" color={COLORS.textSecondary}>
                                     AI is breaking down your milestone into actionable steps.
                                 </Typography>
+                            </View>
+                        ) : error ? (
+                            <View style={styles.loadingContainer}>
+                                <Typography variant="h3" color={COLORS.error} style={{ marginBottom: SPACING.m }}>
+                                    Generation Failed
+                                </Typography>
+                                <Typography variant="body" color={COLORS.textSecondary} align="center" style={{ marginBottom: SPACING.l }}>
+                                    {error}
+                                </Typography>
+                                <Button
+                                    title="Try Again"
+                                    onPress={handleGenerate}
+                                />
                             </View>
                         ) : (
                             <>
@@ -238,22 +232,5 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         padding: SPACING.xl,
-    },
-    modeSelector: {
-        flexDirection: 'row',
-        padding: SPACING.m,
-        gap: SPACING.m,
-    },
-    modeButton: {
-        flex: 1,
-        paddingVertical: SPACING.s,
-        alignItems: 'center',
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    modeButtonActive: {
-        backgroundColor: COLORS.primary,
-        borderColor: COLORS.primary,
-    },
+    }
 });

@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
+import { FocusProvider } from './src/context/FocusContext';
 import {
   useFonts,
   Outfit_300Light,
@@ -20,6 +21,13 @@ import * as SplashScreen from 'expo-splash-screen';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
+
+import { ThemeProvider, useTheme } from './src/theme';
+
+const ThemedStatusBar = () => {
+  const { isDark, colors } = useTheme();
+  return <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.background} />;
+};
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -49,8 +57,12 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" backgroundColor="#1D1B1A" />
-      <AppNavigator />
+      <ThemeProvider>
+        <ThemedStatusBar />
+        <FocusProvider>
+          <AppNavigator />
+        </FocusProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

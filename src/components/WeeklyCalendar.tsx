@@ -1,8 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { View, StyleSheet, FlatList, TouchableOpacity, Dimensions, PanResponder, Animated, LayoutChangeEvent } from 'react-native';
 import { Typography } from '../design-system/components/Typography';
-import { COLORS, SPACING, RADIUS } from '../design-system/tokens';
+import { SPACING, RADIUS } from '../design-system/tokens';
 import { Step } from '../types';
+import { useTheme } from '../theme';
 
 interface WeeklyCalendarProps {
     selectedDate: Date;
@@ -19,6 +20,7 @@ const WEEK_HEIGHT = 110;
 const MONTH_HEIGHT = 400;
 
 export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ selectedDate, onDateSelect, steps }) => {
+    const { colors } = useTheme();
     const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
     const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
     const flatListRef = useRef<FlatList>(null);
@@ -149,13 +151,14 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ selectedDate, on
                 onPress={() => onDateSelect(item)}
                 style={[
                     styles.dayContainer,
-                    isSelected && styles.selectedDayContainer
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    isSelected && { backgroundColor: colors.primary, borderColor: colors.primary }
                 ]}
                 activeOpacity={0.7}
             >
                 <Typography
                     variant="caption"
-                    color={isSelected ? COLORS.textInverse : COLORS.textSecondary}
+                    color={isSelected ? colors.textInverse : colors.textSecondary}
                     style={styles.dayName}
                 >
                     {dayName}
@@ -163,14 +166,14 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ selectedDate, on
                 <Typography
                     variant="h3"
                     weight="bold"
-                    color={isSelected ? COLORS.textInverse : COLORS.textPrimary}
+                    color={isSelected ? colors.textInverse : colors.textPrimary}
                 >
                     {dayNumber}
                 </Typography>
                 {hasTask && (
                     <View style={[
                         styles.dot,
-                        isSelected ? styles.selectedDot : styles.defaultDot
+                        isSelected ? { backgroundColor: colors.textInverse } : { backgroundColor: colors.primary }
                     ]} />
                 )}
             </TouchableOpacity>
@@ -192,7 +195,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ selectedDate, on
                 }}
                 style={[
                     styles.monthDayContainer,
-                    isSelected && styles.selectedDayContainer,
+                    isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
                     !item.isCurrentMonth && styles.otherMonthDay
                 ]}
                 activeOpacity={0.7}
@@ -200,14 +203,14 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ selectedDate, on
                 <Typography
                     variant="body"
                     weight={isSelected ? "bold" : "regular"}
-                    color={isSelected ? COLORS.textInverse : item.isCurrentMonth ? COLORS.textPrimary : COLORS.textTertiary}
+                    color={isSelected ? colors.textInverse : item.isCurrentMonth ? colors.textPrimary : colors.textTertiary}
                 >
                     {item.date.getDate()}
                 </Typography>
                 {hasTask && (
                     <View style={[
                         styles.dot,
-                        isSelected ? styles.selectedDot : styles.defaultDot
+                        isSelected ? { backgroundColor: colors.textInverse } : { backgroundColor: colors.primary }
                     ]} />
                 )}
             </TouchableOpacity>
@@ -229,7 +232,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ selectedDate, on
             <View style={styles.header}>
                 <TouchableOpacity onPress={toggleView}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Typography variant="caption" weight="bold" color={COLORS.primary}>
+                        <Typography variant="caption" weight="bold" color={colors.primary}>
                             {viewMode === 'week' ? 'WEEK VIEW' : 'MONTH VIEW'}
                         </Typography>
                     </View>
@@ -238,13 +241,13 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ selectedDate, on
                 {viewMode === 'month' && (
                     <View style={styles.monthNav}>
                         <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navButton}>
-                            <Typography variant="h3" color={COLORS.textSecondary}>{"<"}</Typography>
+                            <Typography variant="h3" color={colors.textSecondary}>{"<"}</Typography>
                         </TouchableOpacity>
                         <Typography variant="body" weight="bold" style={styles.monthTitle}>
                             {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                         </Typography>
                         <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navButton}>
-                            <Typography variant="h3" color={COLORS.textSecondary}>{">"}</Typography>
+                            <Typography variant="h3" color={colors.textSecondary}>{">"}</Typography>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -265,7 +268,7 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ selectedDate, on
                     <View style={styles.weekDaysHeader}>
                         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
                             <View key={day} style={styles.weekDayHeaderCell}>
-                                <Typography variant="caption" color={COLORS.textTertiary}>{day}</Typography>
+                                <Typography variant="caption" color={colors.textTertiary}>{day}</Typography>
                             </View>
                         ))}
                     </View>
@@ -310,13 +313,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderRadius: RADIUS.m,
-        backgroundColor: COLORS.surface,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        // backgroundColor & borderColor handled inline
     },
     selectedDayContainer: {
-        backgroundColor: COLORS.primary,
-        borderColor: COLORS.primary,
+        // backgroundColor & borderColor handled inline
     },
     dayName: {
         marginBottom: SPACING.xs,
@@ -330,10 +331,10 @@ const styles = StyleSheet.create({
         marginTop: SPACING.xs,
     },
     defaultDot: {
-        backgroundColor: COLORS.primary,
+        // backgroundColor handled inline
     },
     selectedDot: {
-        backgroundColor: COLORS.textInverse,
+        // backgroundColor handled inline
     },
     // Month View Styles
     monthGrid: {

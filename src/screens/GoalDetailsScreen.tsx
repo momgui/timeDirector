@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Linking, Alert, TextInput, Modal, KeyboardAvoidingView, Platform, LayoutAnimation } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -9,69 +9,71 @@ import { Card } from '../design-system/components/Card';
 import { Button } from '../design-system/components/Button';
 import { Input } from '../design-system/components/Input';
 import { EmptyState } from '../design-system/components/EmptyState';
-import { COLORS, SPACING, RADIUS } from '../design-system/tokens';
+import { SPACING, RADIUS } from '../design-system/tokens';
+import { useTheme } from '../theme';
 import { RootStackParamList, Goal, Step, GoalResource, SlotCategory } from '../types';
-import { getGoals, getSteps, updateGoal, saveSteps, addResourceToGoal, deleteResourceFromGoal, deleteGoal, deleteStep } from '../services/storage';
+import { getGoals, getSteps, updateGoal, saveSteps, updateStep, addResourceToGoal, deleteResourceFromGoal, deleteGoal, deleteStep } from '../services/storage';
 import { CreateTaskModal } from '../components/CreateTaskModal';
+import { Checkbox } from '../design-system/components/Checkbox';
+import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal';
 import { v4 as uuidv4 } from 'uuid';
+import { useFocus } from '../context/FocusContext';
+import * as DocumentPicker from 'expo-document-picker';
 
 type GoalDetailsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'GoalDetails'>;
 type GoalDetailsScreenRouteProp = RouteProp<RootStackParamList, 'GoalDetails'>;
 
 const CATEGORIES: SlotCategory[] = [' WORK ', 'PROJECTS', 'PERSONAL', 'STUDY'];
 
-const BackIcon = ({ color = COLORS.textPrimary, size = 24 }: { color?: string; size?: number }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <Path d="M19 12H5" />
-        <Path d="M12 19l-7-7 7-7" />
-    </Svg>
-);
 
-const ExternalLinkIcon = ({ color = COLORS.textSecondary, size = 20 }: { color?: string; size?: number }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <Path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-        <Path d="M15 3h6v6" />
-        <Path d="M10 14L21 3" />
-    </Svg>
-);
-
-const FileIcon = ({ color = COLORS.textSecondary, size = 20 }: { color?: string; size?: number }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <Path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
-        <Path d="M13 2v7h7" />
-    </Svg>
-);
-
-const TrashIcon = ({ color = COLORS.error, size = 18 }: { color?: string; size?: number }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <Path d="M3 6h18" />
-        <Path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-    </Svg>
-);
-
-const WandIcon = ({ color = COLORS.primary, size = 20 }: { color?: string; size?: number }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <Path d="M15 4V2" />
-        <Path d="M15 16v-2" />
-        <Path d="M8 9h2" />
-        <Path d="M20 9h2" />
-        <Path d="M17.8 11.8L19 13" />
-        <Path d="M15 9l-1 1" />
-        <Path d="M17.8 6.2L19 5" />
-        <Path d="M3 21l9-9" />
-        <Path d="M12.2 6.2L11 5" />
-    </Svg>
-);
 
 const GoalDetailsScreen = () => {
+    const { colors } = useTheme();
     const navigation = useNavigation<GoalDetailsScreenNavigationProp>();
     const route = useRoute<GoalDetailsScreenRouteProp>();
     const { goalId } = route.params;
+    const { startSession } = useFocus();
+
+    const BackIcon = ({ color = colors.textPrimary, size = 24 }: { color?: string; size?: number }) => (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Path d="M19 12H5" />
+            <Path d="M12 19l-7-7 7-7" />
+        </Svg>
+    );
+
+    const ExternalLinkIcon = ({ color = colors.textSecondary, size = 20 }: { color?: string; size?: number }) => (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            <Path d="M15 3h6v6" />
+            <Path d="M10 14L21 3" />
+        </Svg>
+    );
+
+    const FileIcon = ({ color = colors.textSecondary, size = 20 }: { color?: string; size?: number }) => (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+            <Path d="M13 2v7h7" />
+        </Svg>
+    );
+
+    const TrashIcon = ({ color = colors.error, size = 18 }: { color?: string; size?: number }) => (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Path d="M3 6h18" />
+            <Path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        </Svg>
+    );
+
+    const PlayIcon = ({ color = colors.primary, size = 24 }: { color?: string; size?: number }) => (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Path d="M5 3l14 9-14 9V3z" />
+        </Svg>
+    );
 
     const [goal, setGoal] = useState<Goal | null>(null);
     const [steps, setSteps] = useState<Step[]>([]);
     const [activeTab, setActiveTab] = useState<'TASKS' | 'CONTEXT'>('TASKS');
-    const [createTaskVisible, setCreateTaskVisible] = useState(false);
+    const [taskModalVisible, setTaskModalVisible] = useState(false);
+    const [editingTask, setEditingTask] = useState<Step | null>(null);
     const [addResourceVisible, setAddResourceVisible] = useState(false);
     const [contextText, setContextText] = useState('');
 
@@ -79,6 +81,16 @@ const GoalDetailsScreen = () => {
     const [newResourceTitle, setNewResourceTitle] = useState('');
     const [newResourceUrl, setNewResourceUrl] = useState('');
     const [newResourceType, setNewResourceType] = useState<'LINK' | 'FILE_REF'>('LINK');
+
+    // Selection Mode State
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+    const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+    const [deleteConfig, setDeleteConfig] = useState<{
+        title: string;
+        message: string;
+        onConfirm: () => Promise<void>;
+    } | null>(null);
 
     const loadData = async () => {
         const allGoals = await getGoals();
@@ -109,7 +121,6 @@ const GoalDetailsScreen = () => {
         const updatedGoal = { ...goal, context: contextText };
         await updateGoal(updatedGoal);
         setGoal(updatedGoal);
-        // Optional: show a toast or feedback
     };
 
     const handleDeleteGoal = async () => {
@@ -130,33 +141,84 @@ const GoalDetailsScreen = () => {
         );
     };
 
-    const handleAddTask = async (title: string, date: Date, description?: string, effort: number = 1, category?: SlotCategory) => {
-        const newStep: Step = {
-            id: uuidv4(),
-            goalId,
-            title,
-            description,
-            date,
-            isCompleted: false,
-            effort,
-            category: category || goal?.category || 'PERSONAL',
-        };
-        await saveSteps([newStep]);
+    const handleSaveTask = async (title: string, date: Date, description?: string, effort: number = 1, category?: SlotCategory) => {
+        if (editingTask) {
+            const updatedStep = {
+                ...editingTask,
+                title,
+                date,
+                description,
+                effort,
+                category: category || editingTask.category
+            };
+            await updateStep(updatedStep);
+        } else {
+            const newStep: Step = {
+                id: uuidv4(),
+                goalId,
+                title,
+                description,
+                date,
+                isCompleted: false,
+                effort,
+                category: category || goal?.category || 'PERSONAL',
+            };
+            await saveSteps([newStep]);
+        }
+        setTaskModalVisible(false);
+        setEditingTask(null);
         loadData();
     };
 
     const handleToggleTask = async (step: Step) => {
+        if (selectionMode) return;
         // Optimistic update
         const updatedSteps = steps.map(s => s.id === step.id ? { ...s, isCompleted: !s.isCompleted } : s);
         setSteps(updatedSteps);
 
-        // Actual update would be in storage.ts 'updateStep' but we only have saveSteps which appends or we need updateStep
-        // NOTE: In DashboardScreen we used updateStep but it wasn't imported here. Let's assume we need to import it or implement it.
-        // Wait, I imported updateStep from storage in the imports.
-        // Actually, updateStep is not in the imports list I wrote above. Let me check.
-        // Yes, I missed updateStep in the import list. I'll add it.
-        // For now, let's just re-implement a quick save or use updateGoal logic if needed, but step is separate.
-        // I will trust that I can import updateStep. I'll add it to the import line.
+        const updatedStep = { ...step, isCompleted: !step.isCompleted };
+        await updateStep(updatedStep);
+    };
+
+    const handleLongPress = (stepId: string) => {
+        if (selectionMode) return;
+        setSelectionMode(true);
+        setSelectedItems(new Set([stepId]));
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    };
+
+    const handlePress = (step: Step) => {
+        if (selectionMode) {
+            const newSelected = new Set(selectedItems);
+            if (newSelected.has(step.id)) {
+                newSelected.delete(step.id);
+                if (newSelected.size === 0) {
+                    setSelectionMode(false);
+                }
+            } else {
+                newSelected.add(step.id);
+            }
+            setSelectedItems(newSelected);
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        } else {
+            handleToggleTask(step);
+        }
+    };
+
+    const handleDeleteSelected = () => {
+        setDeleteConfig({
+            title: "Delete Selected Tasks?",
+            message: `Are you sure you want to delete ${selectedItems.size} task(s)? This cannot be undone.`,
+            onConfirm: async () => {
+                for (const id of selectedItems) {
+                    await deleteStep(id);
+                }
+                setSelectionMode(false);
+                setSelectedItems(new Set());
+                loadData();
+            }
+        });
+        setDeleteModalVisible(true);
     };
 
     const handleAddResource = async () => {
@@ -211,6 +273,13 @@ const GoalDetailsScreen = () => {
         }
     };
 
+    const handleStartFocus = () => {
+        if (goal) {
+            startSession(goal);
+            navigation.navigate('FocusSession');
+        }
+    };
+
     if (!goal) return <View style={styles.container} />;
 
     return (
@@ -222,6 +291,9 @@ const GoalDetailsScreen = () => {
                 <Typography variant="h3" weight="bold" style={{ flex: 1, textAlign: 'center' }}>
                     Goal Details
                 </Typography>
+                <TouchableOpacity onPress={handleStartFocus} style={{ padding: SPACING.s, marginRight: SPACING.s }}>
+                    <PlayIcon />
+                </TouchableOpacity>
                 <TouchableOpacity onPress={handleDeleteGoal} style={styles.deleteButton}>
                     <TrashIcon />
                 </TouchableOpacity>
@@ -232,7 +304,7 @@ const GoalDetailsScreen = () => {
                     <Typography variant="h1" weight="bold" style={{ marginBottom: SPACING.s }}>
                         {goal.title}
                     </Typography>
-                    <Typography variant="body" color={COLORS.textSecondary}>
+                    <Typography variant="body" color={colors.textSecondary}>
                         Deadline: {new Date(goal.deadline).toLocaleDateString()}
                     </Typography>
                 </View>
@@ -244,12 +316,13 @@ const GoalDetailsScreen = () => {
                             onPress={() => handleUpdateCategory(cat)}
                             style={[
                                 styles.categoryChip,
-                                goal.category === cat && styles.categoryChipSelected
+                                { borderColor: colors.border },
+                                goal.category === cat && { backgroundColor: colors.primary, borderColor: colors.primary }
                             ]}
                         >
                             <Typography
                                 variant="caption"
-                                color={goal.category === cat ? COLORS.background : COLORS.textSecondary}
+                                color={goal.category === cat ? colors.background : colors.textSecondary}
                                 weight={goal.category === cat ? 'bold' : 'regular'}
                             >
                                 {cat.trim()}
@@ -258,20 +331,20 @@ const GoalDetailsScreen = () => {
                     ))}
                 </View>
 
-                <View style={styles.tabsContainer}>
+                <View style={[styles.tabsContainer, { borderBottomColor: colors.border }]}>
                     <TouchableOpacity
-                        style={[styles.tab, activeTab === 'TASKS' && styles.activeTab]}
+                        style={[styles.tab, activeTab === 'TASKS' && { borderBottomColor: colors.primary }]}
                         onPress={() => setActiveTab('TASKS')}
                     >
-                        <Typography variant="body" weight={activeTab === 'TASKS' ? 'bold' : 'regular'} color={activeTab === 'TASKS' ? COLORS.primary : COLORS.textSecondary}>
+                        <Typography variant="body" weight={activeTab === 'TASKS' ? 'bold' : 'regular'} color={activeTab === 'TASKS' ? colors.primary : colors.textSecondary}>
                             Tasks
                         </Typography>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={[styles.tab, activeTab === 'CONTEXT' && styles.activeTab]}
+                        style={[styles.tab, activeTab === 'CONTEXT' && { borderBottomColor: colors.primary }]}
                         onPress={() => setActiveTab('CONTEXT')}
                     >
-                        <Typography variant="body" weight={activeTab === 'CONTEXT' ? 'bold' : 'regular'} color={activeTab === 'CONTEXT' ? COLORS.primary : COLORS.textSecondary}>
+                        <Typography variant="body" weight={activeTab === 'CONTEXT' ? 'bold' : 'regular'} color={activeTab === 'CONTEXT' ? colors.primary : colors.textSecondary}>
                             Context
                         </Typography>
                     </TouchableOpacity>
@@ -286,32 +359,71 @@ const GoalDetailsScreen = () => {
                                 action={{ label: "✨ Decompose with AI", onPress: () => navigation.navigate('GoalInput', { goalId }) }}
                             />
                         ) : (
-                            steps.map((step, index) => (
-                                <Card key={step.id} variant="solid" padding="m" style={styles.stepItem}>
-                                    <View style={styles.stepRow}>
-                                        <View style={[styles.bullet, step.isCompleted && styles.bulletCompleted]} />
-                                        <View style={{ flex: 1 }}>
-                                            <Typography
-                                                variant="body"
-                                                color={step.isCompleted ? COLORS.textTertiary : COLORS.textPrimary}
-                                                style={step.isCompleted ? styles.textCompleted : undefined}
-                                            >
-                                                {step.title}
-                                            </Typography>
-                                            <Typography variant="caption" color={COLORS.textTertiary}>
-                                                {new Date(step.date || step.scheduledDate || new Date()).toLocaleDateString()}
-                                            </Typography>
-                                        </View>
-                                    </View>
-                                </Card>
-                            ))
+                            steps.map((step, index) => {
+                                const isSelected = selectedItems.has(step.id);
+                                return (
+                                    <TouchableOpacity
+                                        key={step.id}
+                                        onLongPress={() => handleLongPress(step.id)}
+                                        onPress={() => {
+                                            if (selectionMode) {
+                                                handlePress(step);
+                                            } else {
+                                                setEditingTask(step);
+                                                setTaskModalVisible(true);
+                                            }
+                                        }}
+                                        activeOpacity={0.9}
+                                    >
+                                        <Card
+                                            variant="solid"
+                                            padding="m"
+                                            style={[
+                                                styles.stepItem,
+                                                isSelected && { borderColor: colors.primary, borderWidth: 2 }
+                                            ]}
+                                        >
+                                            <View style={styles.stepRow}>
+                                                {selectionMode ? (
+                                                    <View style={[styles.selectionCircle, { borderColor: colors.textSecondary }, isSelected && { backgroundColor: colors.primary, borderColor: colors.primary }]} />
+                                                ) : (
+                                                    <TouchableOpacity
+                                                        onPress={() => handleToggleTask(step)}
+                                                        style={{ padding: 4, marginRight: 8 }}
+                                                        activeOpacity={0.7}
+                                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                                    >
+                                                        <Checkbox
+                                                            checked={step.isCompleted}
+                                                            onPress={() => handleToggleTask(step)}
+                                                            style={{ marginRight: 0 }}
+                                                        />
+                                                    </TouchableOpacity>
+                                                )}
+                                                <View style={{ flex: 1 }}>
+                                                    <Typography
+                                                        variant="body"
+                                                        color={step.isCompleted && !selectionMode ? colors.textTertiary : colors.textPrimary}
+                                                        style={step.isCompleted && !selectionMode ? styles.textCompleted : undefined}
+                                                    >
+                                                        {step.title}
+                                                    </Typography>
+                                                    <Typography variant="caption" color={colors.textTertiary}>
+                                                        {new Date(step.date || step.scheduledDate || new Date()).toLocaleDateString()}
+                                                    </Typography>
+                                                </View>
+                                            </View>
+                                        </Card>
+                                    </TouchableOpacity>
+                                );
+                            })
                         )}
                         {steps.length > 0 && (
                             <View style={{ gap: SPACING.m, marginTop: SPACING.m }}>
                                 <Button
                                     title="+ Add Task"
                                     variant="outline"
-                                    onPress={() => setCreateTaskVisible(true)}
+                                    onPress={() => setTaskModalVisible(true)}
                                 />
                                 <Button
                                     title="✨ AI Plan / Optimize"
@@ -352,19 +464,19 @@ const GoalDetailsScreen = () => {
                             goal.resources.map((resource) => (
                                 <TouchableOpacity key={resource.id} onPress={() => openResource(resource.url)}>
                                     <Card variant="glass" padding="m" style={styles.resourceItem}>
-                                        <View style={styles.resourceIcon}>
+                                        <View style={[styles.resourceIcon, { backgroundColor: colors.surfaceHighlight }]}>
                                             {resource.type === 'LINK' ? <ExternalLinkIcon /> : <FileIcon />}
                                         </View>
                                         <View style={{ flex: 1 }}>
                                             <Typography variant="body" weight="semibold">
                                                 {resource.title}
                                             </Typography>
-                                            <Typography variant="caption" color={COLORS.textTertiary} numberOfLines={1}>
+                                            <Typography variant="caption" color={colors.textTertiary} numberOfLines={1}>
                                                 {resource.url}
                                             </Typography>
                                         </View>
                                         <TouchableOpacity onPress={() => handleDeleteResource(resource.id)} style={{ padding: SPACING.s }}>
-                                            <TrashIcon color={COLORS.textTertiary} />
+                                            <TrashIcon color={colors.textTertiary} />
                                         </TouchableOpacity>
                                     </Card>
                                 </TouchableOpacity>
@@ -383,15 +495,19 @@ const GoalDetailsScreen = () => {
             </ScrollView>
 
             <CreateTaskModal
-                visible={createTaskVisible}
-                onClose={() => setCreateTaskVisible(false)}
-                onSave={(title, date, description, effort, category) => {
-                    handleAddTask(title, date, description, effort, category);
-                    setCreateTaskVisible(false);
+                visible={taskModalVisible}
+                onClose={() => {
+                    setTaskModalVisible(false);
+                    setEditingTask(null);
                 }}
-                initialDate={new Date(goal.deadline)}
-                initialCategory={goal.category}
-                title={`Add Task to ${goal.title}`}
+                onSave={handleSaveTask}
+                initialDate={editingTask?.date ? new Date(editingTask.date) : (goal ? new Date(goal.deadline) : new Date())}
+                initialCategory={editingTask?.category || goal?.category}
+                initialTitle={editingTask?.title || ""}
+                initialDescription={editingTask?.description || ""}
+                initialEffort={editingTask?.effort || 1}
+                title={editingTask ? "Edit Task" : `Add Task to ${goal.title}`}
+                saveLabel={editingTask ? "Save Changes" : "Add Task"}
             />
 
             <Modal
@@ -410,36 +526,102 @@ const GoalDetailsScreen = () => {
                         <View style={{ flexDirection: 'row', marginBottom: SPACING.m, gap: SPACING.s }}>
                             <TouchableOpacity
                                 onPress={() => setNewResourceType('LINK')}
-                                style={[styles.typeButton, newResourceType === 'LINK' && styles.typeButtonActive]}
+                                style={[styles.typeButton, { borderColor: colors.border }, newResourceType === 'LINK' && { backgroundColor: colors.primary, borderColor: colors.primary }]}
                             >
-                                <Typography color={newResourceType === 'LINK' ? COLORS.background : COLORS.textPrimary}>Link</Typography>
+                                <Typography color={newResourceType === 'LINK' ? colors.background : colors.textPrimary}>Link</Typography>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={() => setNewResourceType('FILE_REF')}
-                                style={[styles.typeButton, newResourceType === 'FILE_REF' && styles.typeButtonActive]}
+                                style={[styles.typeButton, { borderColor: colors.border }, newResourceType === 'FILE_REF' && { backgroundColor: colors.primary, borderColor: colors.primary }]}
                             >
-                                <Typography color={newResourceType === 'FILE_REF' ? COLORS.background : COLORS.textPrimary}>File Ref</Typography>
+                                <Typography color={newResourceType === 'FILE_REF' ? colors.background : colors.textPrimary}>File</Typography>
                             </TouchableOpacity>
                         </View>
 
-                        <Typography variant="caption" color={COLORS.textSecondary} style={{ marginBottom: 4 }}>Title</Typography>
-                        <TextInput
-                            style={styles.input}
-                            value={newResourceTitle}
-                            onChangeText={setNewResourceTitle}
-                            placeholder="e.g. Project Specs"
-                            placeholderTextColor={COLORS.textTertiary}
-                        />
+                        {newResourceType === 'LINK' ? (
+                            <>
+                                <Typography variant="caption" color={colors.textSecondary} style={{ marginBottom: 4 }}>Title</Typography>
+                                <TextInput
+                                    style={[styles.input, { backgroundColor: colors.surfaceHighlight, color: colors.textPrimary }]}
+                                    value={newResourceTitle}
+                                    onChangeText={setNewResourceTitle}
+                                    placeholder="e.g. Project Specs"
+                                    placeholderTextColor={colors.textTertiary}
+                                />
 
-                        <Typography variant="caption" color={COLORS.textSecondary} style={{ marginBottom: 4, marginTop: SPACING.s }}>URL / Path</Typography>
-                        <TextInput
-                            style={styles.input}
-                            value={newResourceUrl}
-                            onChangeText={setNewResourceUrl}
-                            placeholder={newResourceType === 'LINK' ? "https://..." : "/path/to/file"}
-                            placeholderTextColor={COLORS.textTertiary}
-                            autoCapitalize="none"
-                        />
+                                <Typography variant="caption" color={colors.textSecondary} style={{ marginBottom: 4, marginTop: SPACING.s }}>URL</Typography>
+                                <TextInput
+                                    style={[styles.input, { backgroundColor: colors.surfaceHighlight, color: colors.textPrimary }]}
+                                    value={newResourceUrl}
+                                    onChangeText={setNewResourceUrl}
+                                    placeholder="https://..."
+                                    placeholderTextColor={colors.textTertiary}
+                                    autoCapitalize="none"
+                                />
+                            </>
+                        ) : (
+                            <View style={{ alignItems: 'center', marginVertical: SPACING.m }}>
+                                {newResourceUrl ? (
+                                    <View style={{ alignItems: 'center', width: '100%' }}>
+                                        <View style={{
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            backgroundColor: colors.surface,
+                                            padding: SPACING.m,
+                                            borderRadius: RADIUS.m,
+                                            marginBottom: SPACING.m,
+                                            width: '100%'
+                                        }}>
+                                            <FileIcon size={32} color={colors.primary} />
+                                            <View style={{ marginLeft: SPACING.m, flex: 1 }}>
+                                                <Typography variant="body" weight="bold" numberOfLines={1}>{newResourceTitle}</Typography>
+                                                <Typography variant="caption" color={colors.textSecondary} numberOfLines={1}>{newResourceUrl}</Typography>
+                                            </View>
+                                        </View>
+                                        <Button
+                                            title="Change File"
+                                            variant="outline"
+                                            onPress={async () => {
+                                                try {
+                                                    const result = await DocumentPicker.getDocumentAsync({
+                                                        copyToCacheDirectory: true
+                                                    });
+
+                                                    if (!result.canceled && result.assets && result.assets.length > 0) {
+                                                        const file = result.assets[0];
+                                                        setNewResourceTitle(file.name);
+                                                        setNewResourceUrl(file.uri);
+                                                    }
+                                                } catch (err) {
+                                                    Alert.alert("Error", "Failed to pick file");
+                                                }
+                                            }}
+                                        />
+                                    </View>
+                                ) : (
+                                    <Button
+                                        title="Select File"
+                                        variant="outline"
+                                        onPress={async () => {
+                                            try {
+                                                const result = await DocumentPicker.getDocumentAsync({
+                                                    copyToCacheDirectory: true
+                                                });
+
+                                                if (!result.canceled && result.assets && result.assets.length > 0) {
+                                                    const file = result.assets[0];
+                                                    setNewResourceTitle(file.name);
+                                                    setNewResourceUrl(file.uri);
+                                                }
+                                            } catch (err) {
+                                                Alert.alert("Error", "Failed to pick file");
+                                            }
+                                        }}
+                                        style={{ width: '100%' }}
+                                    />
+                                )}
+                            </View>
+                        )}
 
                         <View style={{ flexDirection: 'row', gap: SPACING.m, marginTop: SPACING.l }}>
                             <Button
@@ -457,14 +639,42 @@ const GoalDetailsScreen = () => {
                     </Card>
                 </KeyboardAvoidingView>
             </Modal>
-        </Layout >
+
+            {/* Action Bar */}
+            {selectionMode && (
+                <View style={[styles.actionBar, { backgroundColor: colors.surfaceHighlight, shadowColor: colors.shadow }]}>
+                    <Typography variant="body" weight="bold" color={colors.textPrimary}>
+                        {selectedItems.size} Selected
+                    </Typography>
+                    <TouchableOpacity
+                        onPress={handleDeleteSelected}
+                        style={[styles.actionButton, { backgroundColor: colors.surface, borderColor: colors.error }]}
+                    >
+                        <TrashIcon color={colors.error} />
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {deleteConfig && (
+                <DeleteConfirmationModal
+                    visible={deleteModalVisible}
+                    title={deleteConfig.title}
+                    message={deleteConfig.message}
+                    onClose={() => setDeleteModalVisible(false)}
+                    onConfirm={async () => {
+                        await deleteConfig.onConfirm();
+                        setDeleteModalVisible(false);
+                    }}
+                />
+            )}
+        </Layout>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        // backgroundColor: COLORS.background, // Handled by Layout
     },
     header: {
         flexDirection: 'row',
@@ -497,16 +707,16 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        // borderColor: COLORS.border, // Handled inline
     },
     categoryChipSelected: {
-        backgroundColor: COLORS.primary,
-        borderColor: COLORS.primary,
+        // backgroundColor: COLORS.primary, // Handled inline
+        // borderColor: COLORS.primary, // Handled inline
     },
     tabsContainer: {
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
+        // borderBottomColor: COLORS.border, // Handled dynamically
         marginBottom: SPACING.m,
     },
     tab: {
@@ -517,7 +727,7 @@ const styles = StyleSheet.create({
         borderBottomColor: 'transparent',
     },
     activeTab: {
-        borderBottomColor: COLORS.primary,
+        // borderBottomColor: COLORS.primary, // Handled dynamically
     },
     tabContent: {
         minHeight: 200,
@@ -533,11 +743,11 @@ const styles = StyleSheet.create({
         width: 6,
         height: 6,
         borderRadius: 3,
-        backgroundColor: COLORS.primary,
+        // backgroundColor: COLORS.primary, // Handled inline if used (seems unused)
         marginRight: SPACING.m,
     },
     bulletCompleted: {
-        backgroundColor: COLORS.textTertiary,
+        // backgroundColor: COLORS.textTertiary,
     },
     textCompleted: {
         textDecorationLine: 'line-through',
@@ -551,7 +761,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: RADIUS.s,
-        backgroundColor: COLORS.surfaceHighlight,
+        // backgroundColor: COLORS.surfaceHighlight, // Handled inline
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: SPACING.m,
@@ -569,10 +779,10 @@ const styles = StyleSheet.create({
         borderTopRightRadius: RADIUS.l,
     },
     input: {
-        backgroundColor: COLORS.surfaceHighlight,
+        // backgroundColor: COLORS.surfaceHighlight, // Handled inline
         borderRadius: RADIUS.s,
         padding: SPACING.m,
-        color: COLORS.textPrimary,
+        // color: COLORS.textPrimary, // Handled inline
         fontFamily: 'System', // Replace with your font if needed
     },
     typeButton: {
@@ -581,12 +791,58 @@ const styles = StyleSheet.create({
         padding: SPACING.s,
         borderRadius: RADIUS.s,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        // borderColor: COLORS.border, // Handled inline
     },
     typeButtonActive: {
-        backgroundColor: COLORS.primary,
-        borderColor: COLORS.primary,
+        // backgroundColor: COLORS.primary, // Handled inline
+        // borderColor: COLORS.primary, // Handled inline
     },
+    selectedItem: {
+        // borderColor: COLORS.primary, // Handled inline
+        borderWidth: 2,
+    },
+    selectionCircle: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+        // borderColor: COLORS.textSecondary, // Handled inline
+        marginRight: SPACING.m,
+    },
+    selectionCircleActive: {
+        // backgroundColor: COLORS.primary, // Handled inline
+        // borderColor: COLORS.primary, // Handled inline
+    },
+    actionBar: {
+        position: 'absolute',
+        bottom: SPACING.l,
+        left: SPACING.l,
+        right: SPACING.l,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        // backgroundColor: COLORS.surfaceHighlight, // Handled inline
+        padding: SPACING.m,
+        borderRadius: 16,
+        // shadowColor: COLORS.shadow, // Handled inline
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.30,
+        shadowRadius: 4.65,
+        elevation: 8,
+    },
+    actionButton: {
+        // backgroundColor: COLORS.surface, // Handled inline
+        width: 48,
+        height: 48,
+        borderRadius: RADIUS.full,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        // borderColor: COLORS.error // Handled inline
+    }
 });
 
 export default GoalDetailsScreen;

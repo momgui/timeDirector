@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { TextInput, View, StyleSheet, TextInputProps, Animated } from 'react-native';
 import { Typography } from './Typography';
-import { COLORS, RADIUS, SPACING, FONTS } from '../tokens';
+import { RADIUS, SPACING, FONTS } from '../tokens';
+import { useTheme } from '../../theme';
 
 interface InputProps extends TextInputProps {
     label?: string;
@@ -20,6 +21,7 @@ export const Input: React.FC<InputProps> = ({
     onBlur,
     ...props
 }) => {
+    const { colors } = useTheme();
     const [isFocused, setIsFocused] = useState(false);
     const focusAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -45,36 +47,39 @@ export const Input: React.FC<InputProps> = ({
 
     const borderColor = focusAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [COLORS.border, COLORS.primary],
+        outputRange: [colors.border, colors.primary],
     });
 
     return (
         <View style={styles.container}>
             {label && (
-                <Typography variant="caption" color={COLORS.textSecondary} style={styles.label}>
+                <Typography variant="caption" color={colors.textSecondary} style={styles.label}>
                     {label}
                 </Typography>
             )}
             <Animated.View
                 style={[
                     styles.inputContainer,
-                    { borderColor: error ? COLORS.error : borderColor },
+                    {
+                        backgroundColor: colors.surfaceHighlight,
+                        borderColor: error ? colors.error : borderColor
+                    },
                     style,
                 ]}
             >
                 {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
                 <TextInput
-                    style={styles.input}
-                    placeholderTextColor={COLORS.textSecondary}
+                    style={[styles.input, { color: colors.textPrimary }]}
+                    placeholderTextColor={colors.textSecondary}
                     onFocus={handleFocus}
                     onBlur={handleBlur}
-                    selectionColor={COLORS.primary}
+                    selectionColor={colors.primary}
                     {...props}
                 />
                 {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
             </Animated.View>
             {error && (
-                <Typography variant="caption" color={COLORS.error} style={styles.error}>
+                <Typography variant="caption" color={colors.error} style={styles.error}>
                     {error}
                 </Typography>
             )}
@@ -93,7 +98,7 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.surfaceHighlight,
+        // backgroundColor handled inline
         borderRadius: RADIUS.m,
         borderWidth: 1,
         height: 56,
@@ -101,7 +106,7 @@ const styles = StyleSheet.create({
     },
     input: {
         flex: 1,
-        color: COLORS.textPrimary,
+        // color handled inline
         fontFamily: FONTS.family.body,
         fontSize: FONTS.sizes.body,
         height: '100%',

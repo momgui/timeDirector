@@ -1,7 +1,8 @@
 import React from 'react';
 import { StyleSheet, ActivityIndicator, ViewStyle, Pressable, Animated } from 'react-native';
 import { Typography } from './Typography';
-import { COLORS, RADIUS, SPACING } from '../tokens';
+import { RADIUS, SPACING } from '../tokens';
+import { useTheme } from '../../theme';
 
 interface ButtonProps {
     title: string;
@@ -28,6 +29,7 @@ export const Button: React.FC<ButtonProps> = ({
     style,
     fullWidth = false,
 }) => {
+    const { colors } = useTheme();
     const scaleValue = React.useRef(new Animated.Value(1)).current;
 
     const handlePressIn = () => {
@@ -49,34 +51,34 @@ export const Button: React.FC<ButtonProps> = ({
     };
 
     const getBackgroundColor = () => {
-        if (disabled) return COLORS.surfaceHighlight;
+        if (disabled) return colors.surfaceHighlight;
         switch (variant) {
             case 'primary':
-                return COLORS.primary;
+                return colors.primary;
             case 'secondary':
-                return COLORS.surfaceHighlight;
+                return colors.surfaceHighlight;
             case 'outline':
                 return 'transparent';
             case 'ghost':
                 return 'transparent';
             default:
-                return COLORS.primary;
+                return colors.primary;
         }
     };
 
     const getTextColor = () => {
-        if (disabled) return COLORS.textSecondary;
+        if (disabled) return colors.textSecondary;
         switch (variant) {
             case 'primary':
-                return COLORS.textInverse;
+                return colors.textInverse;
             case 'secondary':
-                return COLORS.textPrimary;
+                return colors.textPrimary;
             case 'outline':
-                return COLORS.textPrimary;
+                return colors.textPrimary;
             case 'ghost':
-                return COLORS.textSecondary;
+                return colors.textSecondary;
             default:
-                return COLORS.textInverse;
+                return colors.textInverse;
         }
     };
 
@@ -84,7 +86,7 @@ export const Button: React.FC<ButtonProps> = ({
         if (variant === 'outline') {
             return {
                 borderWidth: 1,
-                borderColor: disabled ? COLORS.border : COLORS.borderHighlight
+                borderColor: disabled ? colors.border : colors.borderHighlight
             }
         }
         return {};

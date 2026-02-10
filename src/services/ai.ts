@@ -94,7 +94,7 @@ export const generateQuestions = async (goalTitle: string, deadline: Date, conte
     }
 };
 
-export const generateSteps = async (goalTitle: string, deadline: Date, contextAnswers: { question: string, answer: string }[] = [], initialContext: string = '', autoSplit: boolean = true): Promise<{ steps: Step[], category: SlotCategory }> => {
+export const generateSteps = async (goalTitle: string, deadline: Date, contextAnswers: { question: string, answer: string }[] = [], initialContext: string = ''): Promise<{ steps: Step[], category: SlotCategory }> => {
     const today = new Date();
     const startDate = new Date(today);
     startDate.setDate(today.getDate() + 1); // Start from tomorrow
@@ -206,32 +206,6 @@ export const generateSteps = async (goalTitle: string, deadline: Date, contextAn
             isMilestone: true,
         }));
 
-        // --- Deterministic Subtask Splitting ---
-        const allSteps: Step[] = [];
-
-        if (autoSplit) {
-            for (let i = 0; i < steps.length; i++) {
-                const milestone = steps[i];
-                allSteps.push(milestone);
-
-                if (i === 0) {
-                    const subtasks = await splitMilestone(
-                        milestone.title,
-                        milestone.description || '',
-                        milestone.estimatedMinutes || 60,
-                        parsedData.category,
-                        milestone.id,
-                        'ai',
-                        milestone.effort || 2
-                    );
-                    allSteps.push(...subtasks);
-                }
-            }
-
-        } else {
-            allSteps.push(...steps);
-        }
-
         // --- Proportional Scheduling Logic ---
         // 1. Calculate total estimated minutes (of milestones)
         const totalMinutes = steps.reduce((sum: number, step: any) => sum + (step.estimatedMinutes || 60), 0);
@@ -257,7 +231,7 @@ export const generateSteps = async (goalTitle: string, deadline: Date, contextAn
             step.date = scheduledDate;
         });
 
-        return { steps: allSteps, category: parsedData.category as SlotCategory };
+        return { steps, category: parsedData.category as SlotCategory };
 
     } catch (error) {
         console.error('AI Generation Error:', error);
@@ -318,18 +292,18 @@ export const generateSubtasks = async (milestoneTitle: string, milestoneDescript
             effort: parentEffort, // Inherit parent effort
             estimatedMinutes: duration,
             category: category,
+            isMilestone: false,
         };
     });
 };
 
-export const splitMilestone = async (title: string, description: string, totalMinutes: number, category: string, parentId: string = '', mode: 'ai' | 'generic' = 'ai', parentEffort: number = 2): Promise<Step[]> => {
+export const splitMilestone = async (title: string, description: string, totalMinutes: number, category: string, parentId: string = '', mode: 'ai' | 'generic' = 'ai', parentEffort: number = 2, goalTitle: string = '', goalContext: string = ''): Promise<Step[]> => {
     if (mode === 'generic') {
         return generateSubtasks(title, description, totalMinutes, parentId, category as SlotCategory, parentEffort);
     }
 
     if (!GEMINI_API_KEY) {
-        console.log('Using mock AI splitting (No API Key)');
-        return generateSubtasks(title, description, totalMinutes, parentId, category as SlotCategory, parentEffort);
+        throw new Error('Problem with the Gemini API key');
     }
 
     try {
@@ -341,12 +315,15 @@ export const splitMilestone = async (title: string, description: string, totalMi
             - **Description:** "${description}"
             - **Total Time Budget:** ${totalMinutes} minutes
             - **Category:** "${category}"
+            - **PARENT GOAL:** "${goalTitle}"
+            - **ADDITIONAL CONTEXT:** "${goalContext}"
 
             **OBJECTIVE:**
             Generate a list of sub-tasks that are **atomic**, **action-oriented**, and **chronologically ordered**.
+            Use the Parent Goal and Context to tailor the tone, complexity, and specific steps to the user's actual objective.
 
             **STRICT CONSTRAINTS:**
-            1.  **Time Integrity:** The sum of \`estimatedMinutes\` for all sub-tasks MUST equal EXACTLY **${totalMinutes} minutes**. This is non-negotiable.
+            1.  **Time Integrity:** The sum of \`estimatedMinutes\` for all sub-tasks should be CLOSE to **${totalMinutes} minutes**. It does not need to be exact, but ensure the total scope fits the budget.
             2.  **Granularity:**
                 - Tasks should typically range from **15 to 60 minutes**.
                 - If the milestone is short (< 30m), 1-2 tasks are fine.
@@ -391,7 +368,7 @@ export const splitMilestone = async (title: string, description: string, totalMi
         const text = data.candidates[0].content.parts[0].text;
         const parsedData = parseAIResponse(text);
 
-        return parsedData.steps.map((s: any, index: number) => ({
+        const steps = parsedData.steps.map((s: any, index: number) => ({
             id: uuidv4(),
             parentId: parentId, // Inherit parent ID
             title: s.title,
@@ -400,12 +377,31 @@ export const splitMilestone = async (title: string, description: string, totalMi
             isCompleted: false,
             effort: parentEffort, // Inherit parent effort, overriding AI suggestion
             estimatedMinutes: s.estimatedMinutes,
-            isMilestone: true, // Sub-milestones are also milestones
+            isMilestone: false, // Sub-tasks are NOT milestones
         }));
+
+        // Force time integrity: Adjust last step to ensure sum equals totalMinutes
+        // We still do this to keep the UI consistent, even if the AI was loose
+        const currentSum = steps.reduce((sum: number, s: any) => sum + s.estimatedMinutes, 0);
+        const difference = totalMinutes - currentSum;
+
+        if (difference !== 0 && steps.length > 0) {
+            const lastStep = steps[steps.length - 1];
+            // Ensure we don't make the task disappear or become negative
+            const newDuration = Math.max(5, lastStep.estimatedMinutes + difference);
+
+            // If the adjustment would be too drastic, we might need a better strategy, 
+            // but for now, we absorb the error in the last task.
+            lastStep.estimatedMinutes = newDuration;
+
+            // If the adjustment resulted in a change (it should), we are good. 
+            // If newDuration was clamped to 5, the total might still be off, but it's safer than negative.
+        }
+
+        return steps;
 
     } catch (error) {
         console.error('AI Split Error:', error);
-        // Fallback to deterministic
-        return generateSubtasks(title, description, totalMinutes, parentId, category as SlotCategory, parentEffort);
+        throw error;
     }
 };

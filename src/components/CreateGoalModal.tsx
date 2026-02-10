@@ -6,18 +6,17 @@ import { Card } from '../design-system/components/Card';
 import { Typography } from '../design-system/components/Typography';
 import { Button } from '../design-system/components/Button';
 import { Input } from '../design-system/components/Input';
-import { COLORS, SPACING, RADIUS } from '../design-system/tokens';
+import { SPACING, RADIUS } from '../design-system/tokens';
 import { SlotCategory } from '../types/index';
+import { useTheme } from '../theme';
 
-const getCategoryColor = (category?: string) => { // category is string? or SlotCategory?
-    // In types/index.ts SlotCategory is a type alias for a union of strings.
-    // However, some strings have spaces like ' WORK '.
+const getCategoryColor = (category: string | undefined, categoriesColors: any) => {
     switch (category) {
-        case ' WORK ': return COLORS.categories.work;
-        case 'PROJECTS': return COLORS.categories.projects;
-        case 'PERSONAL': return COLORS.categories.personal;
-        case 'STUDY': return COLORS.categories.study;
-        default: return COLORS.textSecondary;
+        case ' WORK ': return categoriesColors.work;
+        case 'PROJECTS': return categoriesColors.projects;
+        case 'PERSONAL': return categoriesColors.personal;
+        case 'STUDY': return categoriesColors.study;
+        default: return categoriesColors.work; // Fallback
     }
 };
 
@@ -34,6 +33,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
     onClose,
     onSave,
 }) => {
+    const { colors } = useTheme();
     const [title, setTitle] = useState('');
     const [deadline, setDeadline] = useState(new Date());
     const [category, setCategory] = useState<SlotCategory>('PERSONAL');
@@ -65,6 +65,8 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
         setShowDatePicker(false);
     };
 
+    const categoryColor = getCategoryColor(category, colors.categories);
+
     return (
         <Modal
             visible={visible}
@@ -77,7 +79,7 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
 
                 <Card variant="solid" padding="l" style={styles.container}>
                     <View style={styles.headerRow}>
-                        <Typography variant="h2" weight="bold" color={COLORS.textPrimary} style={styles.header}>
+                        <Typography variant="h2" weight="bold" color={colors.textPrimary} style={styles.header}>
                             New Goal
                         </Typography>
                         <Button
@@ -101,21 +103,21 @@ export const CreateGoalModal: React.FC<CreateGoalModalProps> = ({
 
                     <View style={styles.row}>
                         <View style={styles.categoryContainer}>
-                            <Typography variant="caption" color={COLORS.textSecondary} style={styles.label}>
+                            <Typography variant="caption" color={colors.textSecondary} style={styles.label}>
                                 CATEGORY
                             </Typography>
                             <TouchableOpacity
-                                style={[styles.categoryPill, { borderColor: getCategoryColor(category) }]}
+                                style={[styles.categoryPill, { borderColor: categoryColor }]}
                                 onPress={handleCycleCategory}
                             >
-                                <Typography variant="caption" color={getCategoryColor(category)} weight="bold">
+                                <Typography variant="caption" color={categoryColor} weight="bold">
                                     {category.trim()}
                                 </Typography>
                             </TouchableOpacity>
                         </View>
 
                         <View style={styles.dateContainer}>
-                            <Typography variant="caption" color={COLORS.textSecondary} style={styles.label}>
+                            <Typography variant="caption" color={colors.textSecondary} style={styles.label}>
                                 DEADLINE
                             </Typography>
                             <Button

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { TouchableOpacity, View, StyleSheet, Animated, ViewStyle, Easing } from 'react-native';
-import { COLORS, RADIUS, SHADOWS } from '../tokens';
+import { RADIUS, SHADOWS } from '../tokens';
+import { useTheme } from '../../theme';
 
 interface CheckboxProps {
     checked: boolean;
@@ -14,9 +15,12 @@ export const Checkbox: React.FC<CheckboxProps> = ({
     checked,
     onPress,
     size = 24,
-    color = COLORS.primary,
+    color,
     style,
 }) => {
+    const { colors } = useTheme();
+    const activeColor = color || colors.primary;
+
     const scaleAnim = useRef(new Animated.Value(checked ? 1 : 0)).current;
     const rippleAnim = useRef(new Animated.Value(0)).current;
     const containerScale = useRef(new Animated.Value(1)).current;
@@ -91,7 +95,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({
                         width: size,
                         height: size,
                         borderRadius: size / 2,
-                        backgroundColor: color,
+                        backgroundColor: activeColor,
                         opacity: rippleOpacity,
                         transform: [{ scale: rippleScale }],
                     }
@@ -107,8 +111,8 @@ export const Checkbox: React.FC<CheckboxProps> = ({
                         width: size,
                         height: size,
                         borderRadius: size / 2,
-                        borderColor: checked ? color : COLORS.textSecondary,
-                        backgroundColor: checked ? 'rgba(180, 227, 187, 0.1)' : 'transparent', // Using primaryDim logic
+                        borderColor: checked ? activeColor : colors.textSecondary,
+                        backgroundColor: checked ? colors.primaryDim : 'transparent',
                         transform: [{ scale: containerScale }]
                     },
                 ]}
@@ -120,7 +124,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({
                             width: innerSize,
                             height: innerSize,
                             borderRadius: innerSize / 2,
-                            backgroundColor: color,
+                            backgroundColor: activeColor,
                             transform: [{ scale: scaleAnim }],
                         },
                     ]}

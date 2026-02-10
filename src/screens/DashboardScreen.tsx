@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, FlatList, ScrollView, LayoutAnimation, Platform, UIManager, TouchableOpacity, Alert, Dimensions, Animated } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Svg, { Path, Rect, Line } from 'react-native-svg';
-import { signOut, getCurrentUser } from '../services/auth';
+import { getCurrentUser } from '../services/auth';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, Goal, Step, WeeklySchedule, SlotCategory } from '../types';
 import { getGoals, getSteps, updateStep, deleteGoal, deleteStep, updateGoal, saveSteps, getAvailability, saveAvailability, saveGoal } from '../services/storage';
@@ -24,7 +24,10 @@ import { MilestoneDetailModal } from '../components/MilestoneDetailModal';
 import { CreationMenuModal } from '../components/CreationMenuModal';
 import { BrainDumpModal } from '../components/BrainDumpModal';
 import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal';
-import { COLORS, SPACING, RADIUS } from '../design-system/tokens';
+import { EventDetailModal } from '../components/EventDetailModal';
+import { TaskDetailModal } from '../components/TaskDetailModal';
+import { SPACING, RADIUS } from '../design-system/tokens';
+import { useTheme } from '../theme';
 import { v4 as uuidv4 } from 'uuid';
 import 'react-native-get-random-values';
 import { SchedulerService } from '../services/scheduler';
@@ -48,6 +51,7 @@ type DashboardScreenProps = {
 type EnergyMode = 'HIGH' | 'MEDIUM' | 'LOW';
 
 const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
+    const { colors, isDark } = useTheme();
     const [goals, setGoals] = useState<Goal[]>([]);
     const [steps, setSteps] = useState<Step[]>([]);
     const [selectionMode, setSelectionMode] = useState(false);
@@ -59,7 +63,12 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     const [selectedGoalForMenu, setSelectedGoalForMenu] = useState<Goal | null>(null);
     const [selectedMilestone, setSelectedMilestone] = useState<Step | null>(null);
     const [renameModalVisible, setRenameModalVisible] = useState(false);
-    const [createTaskModalVisible, setCreateTaskModalVisible] = useState(false);
+    const [taskModalVisible, setTaskModalVisible] = useState(false);
+    const [editingTask, setEditingTask] = useState<Step | null>(null);
+    const [taskDetailModalVisible, setTaskDetailModalVisible] = useState(false);
+    const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<Step | null>(null);
+    const [eventDetailModalVisible, setEventDetailModalVisible] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState<Step | null>(null);
     const [createGoalModalVisible, setCreateGoalModalVisible] = useState(false);
     const [brainDumpModalVisible, setBrainDumpModalVisible] = useState(false);
     const [creationMenuVisible, setCreationMenuVisible] = useState(false);
@@ -156,7 +165,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                         isCompleted: isPast, // Mark past events as completed so they don't get rescheduled
                         effort: 1, // Default effort
                         category: ' WORK ', // Default category, maybe infer?
-                        googleCalendarEventId: event.id
+                        googleCalendarEventId: event.id,
+                        type: 'event'
                     };
                 });
 
@@ -178,7 +188,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                         isCompleted: task.status === 'completed',
                         effort: 1,
                         category: 'PERSONAL',
-                        parentId: undefined // Flatten structure for now
+                        parentId: undefined, // Flatten structure for now
+                        type: 'task'
                     }));
                     allSteps = [...allSteps, ...googleTasksSteps];
                 }
@@ -209,18 +220,51 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         setCreationMenuVisible(true);
     };
 
-    const handleCreateTask = async (title: string, date: Date, description?: string, effort: number = 1, category?: SlotCategory, parentId?: string) => {
+    const handleSaveTask = async (title: string, date: Date, description?: string, effort: number = 1, category?: SlotCategory, parentId?: string) => {
+        if (editingTask) {
+            const updatedStep = {
+                ...editingTask,
+                title,
+                date,
+                description,
+                effort,
+                category: category || editingTask.category
+            };
+            await updateStep(updatedStep);
+        } else {
+            const newStep: Step = {
+                id: uuidv4(),
+                title,
+                description,
+                date,
+                isCompleted: false,
+                effort,
+                category: category || 'PERSONAL',
+                parentId,
+                type: 'task',
+            };
+            await saveSteps([newStep]);
+        }
+        setTaskModalVisible(false);
+        setEditingTask(null);
+        loadData();
+    };
+
+    const handleConvertToTask = async (event: Step) => {
         const newStep: Step = {
             id: uuidv4(),
-            title,
-            description,
-            date,
+            title: event.title,
+            description: event.description,
+            date: event.date,
             isCompleted: false,
-            effort,
-            category: category || 'PERSONAL',
-            parentId,
+            effort: 1, // Default
+            category: ' WORK ', // Default for converted events
+            type: 'task'
         };
+
         await saveSteps([newStep]);
+        setEventDetailModalVisible(false);
+        setSelectedEvent(null);
         loadData();
     };
 
@@ -270,10 +314,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         navigation.navigate('GoalDetails', { goalId: newGoal.id });
     };
 
-    const handleSignOut = async () => {
-        await signOut();
-        navigation.replace('Login');
-    };
+
 
     const toggleStep = async (step: Step) => {
         if (selectionMode) return;
@@ -459,14 +500,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         }
     };
 
-    const ClockIcon = ({ color = COLORS.textSecondary, size = 16 }: { color?: string; size?: number }) => (
+    const ClockIcon = ({ color = colors.textSecondary, size = 16 }: { color?: string; size?: number }) => (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <Path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
             <Path d="M12 6v6l4 2" />
         </Svg>
     );
 
-    const CalendarIcon = ({ color = COLORS.textSecondary, size = 20 }: { color?: string; size?: number }) => (
+    const CalendarIcon = ({ color = colors.textSecondary, size = 20 }: { color?: string; size?: number }) => (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <Rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
             <Line x1="16" y1="2" x2="16" y2="6" />
@@ -475,7 +516,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         </Svg>
     );
 
-    const TrashIcon = ({ color = COLORS.textInverse, size = 20 }: { color?: string; size?: number }) => (
+    const TrashIcon = ({ color = colors.textInverse, size = 20 }: { color?: string; size?: number }) => (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <Path d="M3 6h18" />
             <Path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
@@ -483,7 +524,22 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         </Svg>
     );
 
-    const EditIcon = ({ color = COLORS.textInverse, size = 20 }: { color?: string; size?: number }) => (
+    const handleEditFromDetail = (task: Step) => {
+        setTaskDetailModalVisible(false);
+        setEditingTask(task);
+        setTaskModalVisible(true);
+    };
+
+    const handleToggleFromDetail = async (task: Step) => {
+        await toggleStep(task);
+        // Update local state for the modal immediately
+        if (selectedTaskForDetail && selectedTaskForDetail.id === task.id) {
+            setSelectedTaskForDetail({ ...task, isCompleted: !task.isCompleted });
+        }
+    };
+
+
+    const EditIcon = ({ color = colors.textInverse, size = 20 }: { color?: string; size?: number }) => (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <Path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
             <Path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -493,6 +549,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     const renderStep = ({ item, index }: { item: Step; index: number }) => {
         const isSelected = selectedItems.has(item.id);
         const isMilestone = item.isMilestone;
+        const isEvent = item.type === 'event';
 
         const subtasks = steps.filter(s => s.parentId === item.id);
         const completedSubtasks = subtasks.filter(s => s.isCompleted).length;
@@ -508,8 +565,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                             handlePress(item.id, 'STEP');
                         } else if (isMilestone) {
                             setSelectedMilestone(item);
+                        } else if (isEvent) {
+                            setSelectedEvent(item);
+                            setEventDetailModalVisible(true);
                         } else {
-                            toggleStep(item);
+                            // Open Task Detail Modal instead of Edit directly
+                            setSelectedTaskForDetail(item);
+                            setTaskDetailModalVisible(true);
                         }
                     }}
                     activeOpacity={0.9}
@@ -519,27 +581,44 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                         padding="m"
                         style={[
                             styles.stepItem,
-                            isSelected && styles.selectedItem,
-                            isMilestone && { borderColor: COLORS.primary, borderWidth: 1 },
+                            isSelected && { borderColor: colors.primary, borderWidth: 2 },
+                            isMilestone && { borderColor: colors.primary, borderWidth: 1 },
+                            isEvent && { borderLeftWidth: 3, borderLeftColor: colors.primary },
                             { overflow: 'hidden' }
                         ]}
                     >
                         <View style={styles.stepRow}>
                             {selectionMode ? (
-                                <View style={[styles.selectionCircle, isSelected && styles.selectionCircleActive]} />
-                            ) : !isMilestone ? (
-                                <Checkbox
-                                    checked={item.isCompleted}
+                                <View style={[styles.selectionCircle, { borderColor: colors.textSecondary }, isSelected && { backgroundColor: colors.primary, borderColor: colors.primary }]} />
+                            ) : !isMilestone && !isEvent ? (
+                                <TouchableOpacity
                                     onPress={() => toggleStep(item)}
-                                    style={styles.checkbox}
-                                />
+                                    style={{ padding: 4, marginRight: 8 }}
+                                    activeOpacity={0.7}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                    <Checkbox
+                                        checked={item.isCompleted}
+                                        onPress={() => toggleStep(item)} // Keep onPress here as well for direct box check
+                                        style={styles.checkbox}
+                                    />
+                                </TouchableOpacity>
+                            ) : isEvent ? (
+                                <View style={{ marginRight: SPACING.s, justifyContent: 'center' }}>
+                                    <View style={{
+                                        width: 4,
+                                        height: 40,
+                                        backgroundColor: colors.surfaceHighlight,
+                                        borderRadius: 2
+                                    }} />
+                                </View>
                             ) : null}
 
                             <View style={styles.stepContent}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                     <Typography
                                         variant={isMilestone ? "h3" : "body"}
-                                        color={item.isCompleted && !selectionMode ? COLORS.textSecondary : COLORS.textPrimary}
+                                        color={item.isCompleted && !selectionMode ? colors.textSecondary : colors.textPrimary}
                                         style={[
                                             item.isCompleted && !selectionMode ? styles.completedText : undefined,
                                             { flex: 1, marginRight: SPACING.s }
@@ -547,13 +626,19 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                                     >
                                         {item.title}
                                     </Typography>
+
+                                    {isEvent && item.date && (
+                                        <Typography variant="caption" color={colors.primary} weight="bold">
+                                            {item.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </Typography>
+                                    )}
                                 </View>
 
                                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: SPACING.m }}>
                                     {(item.estimatedMinutes || ((item.scheduledDate || item.date) && isMilestone)) && (
                                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                            <ClockIcon color={COLORS.textTertiary} size={12} />
-                                            <Typography variant="caption" color={COLORS.textSecondary} style={{ marginLeft: 4 }} mono>
+                                            <ClockIcon color={colors.textTertiary} size={12} />
+                                            <Typography variant="caption" color={colors.textSecondary} style={{ marginLeft: 4 }} mono>
                                                 {item.estimatedMinutes ? `${item.estimatedMinutes}m` : ''}
                                                 {item.estimatedMinutes && (item.scheduledDate || item.date) && isMilestone ? ' • ' : ''}
                                                 {(item.scheduledDate || item.date) && isMilestone ? new Date(item.scheduledDate || item.date!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
@@ -562,7 +647,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                                     )}
 
                                     {parentGoal && (
-                                        <Typography variant="caption" color={COLORS.textTertiary} numberOfLines={1} style={{ flex: 1 }}>
+                                        <Typography variant="caption" color={colors.textTertiary} numberOfLines={1} style={{ flex: 1 }}>
                                             {parentGoal.title}
                                         </Typography>
                                     )}
@@ -598,11 +683,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     activeOpacity={0.9}
                 >
                     <Card
-                        variant="glass"
+                        variant="solid"
                         padding="l"
                         style={[
                             styles.goalItem,
-                            isSelected && styles.selectedItem,
+                            isSelected && { borderColor: colors.primary, borderWidth: 2 },
                             { width: itemWidth }
                         ]}
                     >
@@ -611,16 +696,16 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                                 <Typography variant="h3" weight="semibold" style={styles.goalTitle}>
                                     {item.title}
                                 </Typography>
-                                <Typography variant="caption" color={COLORS.textSecondary} mono>
+                                <Typography variant="caption" color={colors.textSecondary} mono>
                                     {new Date(item.deadline).toLocaleDateString()}
                                 </Typography>
                             </View>
                             {selectionMode && (
-                                <View style={[styles.selectionCircle, isSelected && styles.selectionCircleActive]} />
+                                <View style={[styles.selectionCircle, { borderColor: colors.textSecondary }, isSelected && { backgroundColor: colors.primary, borderColor: colors.primary }]} />
                             )}
                         </View>
                         <ProgressBar progress={progress} style={styles.progressBar} />
-                        <Typography variant="caption" color={COLORS.textSecondary} align="right" mono>
+                        <Typography variant="caption" color={colors.textSecondary} align="right" mono>
                             {Math.round(progress * 100)}% Complete
                         </Typography>
                     </Card>
@@ -631,40 +716,40 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
 
     return (
         <Layout noPadding>
-            <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslateY }] }]}>
+            <Animated.View style={[styles.header, { backgroundColor: colors.background, transform: [{ translateY: headerTranslateY }] }]}>
                 <View>
                     <Animated.View style={{ transform: [{ scale: titleScale }, { translateX: titleTranslateX }] }}>
-                        <Typography variant="h1" color={COLORS.textPrimary}>
+                        <Typography variant="h1" color={colors.textPrimary}>
                             Hello, Creator
                         </Typography>
                     </Animated.View>
 
                     <Animated.View style={{ opacity: energyOpacity, height: energyHeight, overflow: 'hidden' }}>
-                        <Typography variant="caption" color={COLORS.textSecondary} style={{ marginBottom: SPACING.s }}>
+                        <Typography variant="caption" color={colors.textSecondary} style={{ marginBottom: SPACING.s }}>
                             What is your energy level?
                         </Typography>
                         <View style={styles.energySelector}>
                             <TouchableOpacity
-                                style={[styles.energyButton, energyMode === 'HIGH' && styles.energyButtonActive]}
+                                style={[styles.energyButton, { borderColor: colors.border }, energyMode === 'HIGH' && { backgroundColor: colors.primary, borderColor: colors.primary }]}
                                 onPress={() => setEnergyMode('HIGH')}
                             >
-                                <Typography variant="caption" color={energyMode === 'HIGH' ? COLORS.background : COLORS.textSecondary}>
+                                <Typography variant="caption" color={energyMode === 'HIGH' ? colors.background : colors.textSecondary}>
                                     High
                                 </Typography>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[styles.energyButton, energyMode === 'MEDIUM' && styles.energyButtonActive]}
+                                style={[styles.energyButton, { borderColor: colors.border }, energyMode === 'MEDIUM' && { backgroundColor: colors.primary, borderColor: colors.primary }]}
                                 onPress={() => setEnergyMode('MEDIUM')}
                             >
-                                <Typography variant="caption" color={energyMode === 'MEDIUM' ? COLORS.background : COLORS.textSecondary}>
+                                <Typography variant="caption" color={energyMode === 'MEDIUM' ? colors.background : colors.textSecondary}>
                                     Medium
                                 </Typography>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[styles.energyButton, energyMode === 'LOW' && styles.energyButtonActive]}
+                                style={[styles.energyButton, { borderColor: colors.border }, energyMode === 'LOW' && { backgroundColor: colors.primary, borderColor: colors.primary }]}
                                 onPress={() => setEnergyMode('LOW')}
                             >
-                                <Typography variant="caption" color={energyMode === 'LOW' ? COLORS.background : COLORS.textSecondary}>
+                                <Typography variant="caption" color={energyMode === 'LOW' ? colors.background : colors.textSecondary}>
                                     Low
                                 </Typography>
                             </TouchableOpacity>
@@ -675,7 +760,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 <View style={{ flexDirection: 'row', gap: SPACING.s }}>
                     <TouchableOpacity
                         onPress={() => setAvailabilityModalVisible(true)}
-                        style={[styles.addButton, { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.full, alignItems: 'center', justifyContent: 'center' }]}
+                        style={[styles.addButton, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: RADIUS.full, alignItems: 'center', justifyContent: 'center' }]}
                     >
                         <CalendarIcon />
                     </TouchableOpacity>
@@ -704,8 +789,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     steps={steps}
                 />
 
-                <Typography variant="caption" weight="bold" color={COLORS.textSecondary} style={styles.sectionTitle}>
-                    ACTIVE GOALS
+                <Typography variant="caption" weight="bold" color={colors.textSecondary} style={styles.sectionTitle}>
+                    RECENT ACTIVITY
                 </Typography>
 
                 {goals.length === 0 ? (
@@ -728,7 +813,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     />
                 )}
 
-                <Typography variant="caption" weight="bold" color={COLORS.textSecondary} style={styles.sectionTitle}>
+                <Typography variant="caption" weight="bold" color={colors.textSecondary} style={styles.sectionTitle}>
                     {selectedDate.toDateString() === new Date().toDateString() ? "TODAY'S FOCUS" : `TASKS FOR ${selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }).toUpperCase()}`}
                 </Typography>
 
@@ -778,9 +863,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 )}
 
                 <Button
-                    title="Sign Out"
+                    title="Settings"
                     variant="ghost"
-                    onPress={handleSignOut}
+                    onPress={() => navigation.navigate('Settings')}
                     style={styles.logoutButton}
                 />
 
@@ -788,55 +873,55 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             </Animated.ScrollView>
 
             {selectionMode && (
-                <View style={styles.actionBar}>
+                <View style={[styles.actionBar, { backgroundColor: colors.surfaceHighlight, shadowColor: colors.shadow }]}>
                     <TouchableOpacity
                         onPress={handleDelete}
                         style={{
-                            backgroundColor: COLORS.surfaceHighlight,
+                            backgroundColor: colors.surfaceHighlight,
                             width: 48,
                             height: 48,
                             borderRadius: RADIUS.full,
                             alignItems: 'center',
                             justifyContent: 'center',
                             borderWidth: 1,
-                            borderColor: COLORS.error
+                            borderColor: colors.error
                         }}
                     >
-                        <TrashIcon color={COLORS.error} />
+                        <TrashIcon color={colors.error} />
                     </TouchableOpacity>
 
                     {selectedItems.size === 1 && (
                         <TouchableOpacity
                             onPress={handleRename}
                             style={{
-                                backgroundColor: COLORS.surfaceHighlight,
                                 width: 48,
                                 height: 48,
                                 borderRadius: RADIUS.full,
+                                backgroundColor: colors.surfaceHighlight,
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 borderWidth: 1,
-                                borderColor: COLORS.border
+                                borderColor: colors.border
                             }}
                         >
-                            <EditIcon color={COLORS.textPrimary} />
+                            <EditIcon color={colors.textPrimary} />
                         </TouchableOpacity>
                     )}
 
                     <TouchableOpacity
                         onPress={handleReschedule}
                         style={{
-                            backgroundColor: COLORS.surfaceHighlight,
+                            backgroundColor: colors.surfaceHighlight,
                             width: 48,
                             height: 48,
                             borderRadius: RADIUS.full,
                             alignItems: 'center',
                             justifyContent: 'center',
                             borderWidth: 1,
-                            borderColor: COLORS.primary
+                            borderColor: colors.primary
                         }}
                     >
-                        <CalendarIcon color={COLORS.primary} />
+                        <CalendarIcon color={colors.primary} />
                     </TouchableOpacity>
                 </View>
             )}
@@ -848,7 +933,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     display="default"
                     onChange={onDateChange}
                     minimumDate={new Date()}
-                    themeVariant="dark"
+                    themeVariant={isDark ? "dark" : "light"}
                 />
             )}
 
@@ -871,13 +956,19 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             />
 
             <CreateTaskModal
-                visible={createTaskModalVisible}
-                onClose={() => setCreateTaskModalVisible(false)}
-                onSave={(title, date, description, effort, category) => {
-                    handleCreateTask(title, date, description, effort, category, selectedMilestone?.id);
-                    setCreateTaskModalVisible(false);
+                visible={taskModalVisible}
+                onClose={() => {
+                    setTaskModalVisible(false);
+                    setEditingTask(null);
                 }}
-                initialDate={selectedDate}
+                onSave={(title, date, description, effort, category) => handleSaveTask(title, date, description, effort, category, selectedMilestone?.id)}
+                initialDate={editingTask?.date || selectedDate || new Date()}
+                initialTitle={editingTask?.title || ""}
+                initialDescription={editingTask?.description || ""}
+                initialEffort={editingTask?.effort || 1}
+                initialCategory={editingTask?.category}
+                title={editingTask ? "Edit Task" : "New Task"}
+                saveLabel={editingTask ? "Save Changes" : "Create Task"}
             />
 
             <AvailabilityModal
@@ -899,7 +990,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 onReschedule={handleMilestoneReschedule}
                 onToggleComplete={handleMilestoneToggle}
                 onAddSubtask={() => {
-                    setCreateTaskModalVisible(true);
+                    setTaskModalVisible(true);
                 }}
                 onDeleteSubtask={async (subtaskId) => {
                     await deleteStep(subtaskId);
@@ -916,6 +1007,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 onGenerateSubtasks={() => {
                     // Optional: implement AI generation later
                 }}
+                goalTitle={goals.find(g => g.id === selectedMilestone?.goalId)?.title}
+                goalContext={goals.find(g => g.id === selectedMilestone?.goalId)?.context}
             />
 
             <CreationMenuModal
@@ -927,7 +1020,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 }}
                 onCreateTask={() => {
                     setCreationMenuVisible(false);
-                    setCreateTaskModalVisible(true);
+                    setTaskModalVisible(true);
                 }}
                 onBrainDump={() => {
                     setCreationMenuVisible(false);
@@ -947,7 +1040,26 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 onSave={handleBrainDumpSave}
             />
 
+            <TaskDetailModal
+                visible={taskDetailModalVisible}
+                onClose={() => setTaskDetailModalVisible(false)}
+                task={selectedTaskForDetail}
+                onEdit={handleEditFromDetail}
+                onToggleComplete={handleToggleFromDetail}
+            />
+
+            <EventDetailModal
+                visible={eventDetailModalVisible}
+                onClose={() => {
+                    setEventDetailModalVisible(false);
+                    setSelectedEvent(null);
+                }}
+                event={selectedEvent}
+                onConvertToTask={handleConvertToTask}
+            />
+
             {deleteConfig && (
+
                 <DeleteConfirmationModal
                     visible={deleteModalVisible}
                     title={deleteConfig.title}
@@ -970,7 +1082,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         zIndex: 100,
-        backgroundColor: COLORS.background,
+        // backgroundColor: COLORS.background, // Handled in component
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -1023,7 +1135,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 2,
         paddingHorizontal: 6,
-        backgroundColor: COLORS.surfaceHighlight,
+        // backgroundColor: COLORS.surfaceHighlight, // Handled in component
         borderRadius: 4,
     },
     checkbox: {
@@ -1051,7 +1163,7 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
     },
     selectedItem: {
-        borderColor: COLORS.primary,
+        // borderColor: COLORS.primary, // Handled inline
         borderWidth: 2,
     },
     selectionCircle: {
@@ -1059,12 +1171,12 @@ const styles = StyleSheet.create({
         height: 24,
         borderRadius: 12,
         borderWidth: 2,
-        borderColor: COLORS.textSecondary,
+        // borderColor: COLORS.textSecondary, // Handled inline
         marginRight: SPACING.m,
     },
     selectionCircleActive: {
-        backgroundColor: COLORS.primary,
-        borderColor: COLORS.primary,
+        // backgroundColor: COLORS.primary, // Handled inline
+        // borderColor: COLORS.primary, // Handled inline
     },
     actionBar: {
         position: 'absolute',
@@ -1073,10 +1185,10 @@ const styles = StyleSheet.create({
         right: SPACING.l,
         flexDirection: 'row',
         justifyContent: 'space-between',
-        backgroundColor: COLORS.surfaceHighlight,
+        // backgroundColor: COLORS.surfaceHighlight, // Handled inline
         padding: SPACING.m,
         borderRadius: 16,
-        shadowColor: COLORS.shadow,
+        // shadowColor: COLORS.shadow, // Handled inline
         shadowOffset: {
             width: 0,
             height: 4,
@@ -1095,11 +1207,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        // borderColor: COLORS.border, // Handled inline
     },
     energyButtonActive: {
-        backgroundColor: COLORS.primary,
-        borderColor: COLORS.primary,
+        // backgroundColor: COLORS.primary, // Handled inline
+        // borderColor: COLORS.primary, // Handled inline
     },
 });
 

@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle, Platform, StyleProp } from 'react-native';
-import { COLORS, RADIUS, SPACING, SHADOWS } from '../tokens';
+import { RADIUS, SPACING, SHADOWS } from '../tokens';
 import { BlurView } from 'expo-blur';
+import { useTheme } from '../../theme';
 
 interface CardProps {
     children: React.ReactNode;
@@ -16,16 +17,19 @@ export const Card: React.FC<CardProps> = ({
     padding = 'l',
     style,
 }) => {
+    const { colors, isDark } = useTheme();
+
     const getBackgroundColor = () => {
         switch (variant) {
             case 'solid':
-                return COLORS.surface;
+                return colors.surface;
             case 'outlined':
                 return 'transparent';
             case 'glass':
-                return Platform.OS === 'ios' ? 'transparent' : 'rgba(30, 30, 30, 0.9)';
+                // Adjust glass opacity based on mode if needed, usually dark glass looks best
+                return Platform.OS === 'ios' ? 'transparent' : (isDark ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)');
             default:
-                return COLORS.surface;
+                return colors.surface;
         }
     };
 
@@ -33,13 +37,13 @@ export const Card: React.FC<CardProps> = ({
         if (variant === 'outlined') {
             return {
                 borderWidth: 1,
-                borderColor: COLORS.border,
+                borderColor: colors.border,
             };
         }
         // Subtle border for solid/glass cards for definition
         return {
             borderWidth: 1,
-            borderColor: COLORS.border,
+            borderColor: colors.border,
         };
     };
 
@@ -49,14 +53,15 @@ export const Card: React.FC<CardProps> = ({
         backgroundColor: getBackgroundColor(),
         ...getBorder(),
         ...SHADOWS.subtle,
+        shadowColor: colors.shadow, // Dynamic shadow color
         overflow: 'hidden',
     };
 
     if (variant === 'glass' && Platform.OS === 'ios') {
         return (
             <View style={[baseStyle, { backgroundColor: 'transparent', borderWidth: 0 }, style]}>
-                <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(20, 20, 20, 0.6)' }]} />
+                <BlurView intensity={30} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(20, 20, 20, 0.6)' : 'rgba(255, 255, 255, 0.6)' }]} />
                 <View style={{ padding: SPACING[padding], ...getBorder(), borderRadius: RADIUS.l }}>
                     {children}
                 </View>

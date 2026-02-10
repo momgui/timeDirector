@@ -39,6 +39,7 @@ export interface Step {
     category?: SlotCategory;
     isMilestone?: boolean;
     parentId?: string;
+    type?: 'task' | 'event';
 }
 
 export type SlotCategory = ' WORK ' | 'PROJECTS' | 'PERSONAL' | 'STUDY' | 'ANYTHING' | 'BLOCKED';
@@ -61,4 +62,20 @@ export type RootStackParamList = {
     Dashboard: undefined;
     GoalInput: { goalId?: string };
     GoalDetails: { goalId: string };
+    FocusSession: undefined;
+    Settings: undefined;
+    PrivacyPolicy: undefined;
+    TermsOfService: undefined;
+    Onboarding: undefined;
 };
+
+export interface Session {
+    id: string;
+    goalId?: string;
+    taskId?: string; // Optional: link to a specific task
+    startTime: number; // Timestamp
+    endTime?: number; // Timestamp
+    duration: number; // In seconds
+    status: 'ACTIVE' | 'PAUSED' | 'COMPLETED';
+    createdAt: Date;
+}

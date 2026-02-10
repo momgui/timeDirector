@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "561996317636",
+    "project_id": "gen-lang-client-0291563265",
+    "storage_bucket": "gen-lang-client-0291563265.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:561996317636:android:c110ff1542de0646bc5a91",
+        "android_client_info": {
+          "package_name": "com.momgui.timedirector"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "561996317636-j47dgor40f56lh024d2am42juuknplb0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDlJYY0aFWmbJsj8TeDDhEGhEIqBKo7Xxk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "561996317636-j47dgor40f56lh024d2am42juuknplb0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "561996317636-4met0lguo5hbd4eod9lgjsunot1st9g9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.momgui.timedirector"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
