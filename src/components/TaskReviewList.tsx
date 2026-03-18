@@ -3,24 +3,25 @@ import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react
 import { Step } from '../types';
 import { Card } from '../design-system/components/Card';
 import { Typography } from '../design-system/components/Typography';
-import { COLORS, SPACING, RADIUS, FONTS } from '../design-system/tokens';
+import { SPACING, RADIUS, FONTS } from '../design-system/tokens';
 import Svg, { Path } from 'react-native-svg';
+import { useTheme } from '../theme';
 
 // Icons
-const TrashIcon = ({ color = COLORS.textSecondary, size = 20 }: { color?: string; size?: number }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+const TrashIcon = ({ color, size = 20 }: { color?: string; size?: number }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || '#9C9996'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <Path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
     </Svg>
 );
 
-const CalendarIcon = ({ color = COLORS.textSecondary, size = 16 }: { color?: string; size?: number }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+const CalendarIcon = ({ color, size = 16 }: { color?: string; size?: number }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || '#9C9996'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <Path d="M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM16 2v4M8 2v4M3 10h18" />
     </Svg>
 );
 
-const ClockIcon = ({ color = COLORS.textSecondary, size = 16 }: { color?: string; size?: number }) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+const ClockIcon = ({ color, size = 16 }: { color?: string; size?: number }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || '#9C9996'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <Path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
         <Path d="M12 6v6l4 2" />
     </Svg>
@@ -39,45 +40,47 @@ export const TaskReviewList: React.FC<TaskReviewListProps> = ({
     onDeleteStep,
     onEditDate,
 }) => {
+    const { colors } = useTheme();
+
     return (
         <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
             {steps.map((step, index) => (
                 <Card key={step.id} variant="solid" style={styles.card}>
                     <View style={styles.header}>
-                        <View style={styles.numberBadge}>
-                            <Typography variant="caption" weight="bold" color={COLORS.background}>
+                        <View style={[styles.numberBadge, { backgroundColor: colors.primary }]}>
+                            <Typography variant="caption" weight="bold" color={colors.background}>
                                 {index + 1}
                             </Typography>
                         </View>
                         <TouchableOpacity onPress={() => onDeleteStep(step.id)} style={styles.deleteButton}>
-                            <TrashIcon color={COLORS.textTertiary} />
+                            <TrashIcon color={colors.textTertiary} />
                         </TouchableOpacity>
                     </View>
 
                     <TextInput
-                        style={styles.titleInput}
+                        style={[styles.titleInput, { color: colors.textPrimary }]}
                         value={step.title}
                         onChangeText={(text) => onUpdateStep({ ...step, title: text })}
                         placeholder="Task title"
-                        placeholderTextColor={COLORS.textTertiary}
+                        placeholderTextColor={colors.textTertiary}
                         multiline
                     />
 
                     <View style={styles.metaContainer}>
                         <TouchableOpacity
-                            style={styles.dateButton}
+                            style={[styles.dateButton, { backgroundColor: colors.surfaceHighlight }]}
                             onPress={() => onEditDate(step)}
                         >
-                            <CalendarIcon color={COLORS.primary} />
-                            <Typography variant="caption" color={COLORS.textSecondary} style={styles.dateText}>
+                            <CalendarIcon color={colors.primary} />
+                            <Typography variant="caption" color={colors.textSecondary} style={styles.dateText}>
                                 {step.date ? step.date.toLocaleDateString() : 'Auto-Schedule'}
                             </Typography>
                         </TouchableOpacity>
 
                         {step.estimatedMinutes && (
-                            <View style={styles.timeBadge}>
-                                <ClockIcon color={COLORS.textSecondary} />
-                                <Typography variant="caption" color={COLORS.textSecondary} style={styles.timeText}>
+                            <View style={[styles.timeBadge, { backgroundColor: colors.surfaceHighlight }]}>
+                                <ClockIcon color={colors.textSecondary} />
+                                <Typography variant="caption" color={colors.textSecondary} style={styles.timeText}>
                                     {step.estimatedMinutes}m
                                 </Typography>
                             </View>
@@ -103,7 +106,6 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.s,
     },
     numberBadge: {
-        backgroundColor: COLORS.primary,
         width: 24,
         height: 24,
         borderRadius: RADIUS.full,
@@ -116,7 +118,6 @@ const styles = StyleSheet.create({
     titleInput: {
         fontFamily: FONTS.family.heading,
         fontSize: FONTS.sizes.h3,
-        color: COLORS.textPrimary,
         marginBottom: SPACING.m,
         padding: 0, // Remove default padding
     },
@@ -125,7 +126,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: SPACING.xs,
         paddingHorizontal: SPACING.s,
-        backgroundColor: COLORS.surfaceHighlight,
         borderRadius: RADIUS.s,
     },
     dateText: {
@@ -141,7 +141,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: SPACING.xs,
         paddingHorizontal: SPACING.s,
-        backgroundColor: COLORS.surfaceHighlight,
         borderRadius: RADIUS.s,
     },
     timeText: {

@@ -5,7 +5,8 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, en
 import { Card } from '../design-system/components/Card';
 import { Typography } from '../design-system/components/Typography';
 import { Button } from '../design-system/components/Button';
-import { COLORS, SPACING, RADIUS } from '../design-system/tokens';
+import { SPACING, RADIUS } from '../design-system/tokens';
+import { useTheme } from '../theme';
 
 interface DatePickerModalProps {
     visible: boolean;
@@ -34,6 +35,7 @@ export const DatePickerModal: React.FC<DatePickerModalProps> = ({
     initialDate = new Date(),
     title = "Select Date"
 }) => {
+    const { colors } = useTheme();
     const [selectedDate, setSelectedDate] = useState(initialDate);
     const [currentMonth, setCurrentMonth] = useState(startOfMonth(initialDate));
 
@@ -71,7 +73,7 @@ export const DatePickerModal: React.FC<DatePickerModalProps> = ({
             <View style={styles.daysGrid}>
                 {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
                     <View key={`header-${index}`} style={styles.dayCell}>
-                        <Typography variant="caption" color={COLORS.textTertiary} weight="bold">
+                        <Typography variant="caption" color={colors.textTertiary} weight="bold">
                             {day}
                         </Typography>
                     </View>
@@ -91,17 +93,17 @@ export const DatePickerModal: React.FC<DatePickerModalProps> = ({
                         >
                             <View style={[
                                 styles.dayInner,
-                                isSelected && styles.selectedDayInner,
-                                !isSelected && isTodayDate && styles.todayDayInner
+                                isSelected && { backgroundColor: colors.primary },
+                                !isSelected && isTodayDate && { borderWidth: 1, borderColor: colors.primary }
                             ]}>
                                 <Typography
                                     variant="body"
                                     color={
                                         isSelected
-                                            ? COLORS.textInverse
+                                            ? colors.textInverse
                                             : !isCurrentMonth
-                                                ? COLORS.textTertiary
-                                                : COLORS.textPrimary
+                                                ? colors.textTertiary
+                                                : colors.textPrimary
                                     }
                                     weight={isSelected || isTodayDate ? "bold" : "regular"}
                                 >
@@ -127,7 +129,7 @@ export const DatePickerModal: React.FC<DatePickerModalProps> = ({
 
                 <Card variant="solid" padding="l" style={styles.container}>
                     <View style={styles.header}>
-                        <Typography variant="h3" weight="bold" color={COLORS.textPrimary}>
+                        <Typography variant="h3" weight="bold" color={colors.textPrimary}>
                             {title}
                         </Typography>
                     </View>
@@ -135,15 +137,15 @@ export const DatePickerModal: React.FC<DatePickerModalProps> = ({
                     <View style={styles.calendarContainer}>
                         <View style={styles.monthNavigation}>
                             <TouchableOpacity onPress={handlePrevMonth} style={styles.navButton}>
-                                <ChevronLeft color={COLORS.textSecondary} />
+                                <ChevronLeft color={colors.textSecondary} />
                             </TouchableOpacity>
 
-                            <Typography variant="h3" weight="medium" color={COLORS.textPrimary}>
+                            <Typography variant="h3" weight="medium" color={colors.textPrimary}>
                                 {format(currentMonth, 'MMMM yyyy')}
                             </Typography>
 
                             <TouchableOpacity onPress={handleNextMonth} style={styles.navButton}>
-                                <ChevronRight color={COLORS.textSecondary} />
+                                <ChevronRight color={colors.textSecondary} />
                             </TouchableOpacity>
                         </View>
 
@@ -219,13 +221,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden', // Ensure background doesn't bleed
-    },
-    selectedDayInner: {
-        backgroundColor: COLORS.primary,
-    },
-    todayDayInner: {
-        borderWidth: 1,
-        borderColor: COLORS.primary,
     },
     footer: {
         flexDirection: 'row',

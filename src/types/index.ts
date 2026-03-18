@@ -40,6 +40,12 @@ export interface Step {
     isMilestone?: boolean;
     parentId?: string;
     type?: 'task' | 'event';
+    
+    // Habit tracking
+    isHabit?: boolean;
+    habitDaysOfWeek?: number[]; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    currentStreak?: number;
+    lastCompletedDate?: Date;
 }
 
 export type SlotCategory = ' WORK ' | 'PROJECTS' | 'PERSONAL' | 'STUDY' | 'ANYTHING' | 'BLOCKED';

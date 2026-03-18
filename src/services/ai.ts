@@ -26,6 +26,40 @@ const parseAIResponse = (text: string) => {
     }
 };
 
+const fetchWithRetry = async (url: string, body: any, retries = 3) => {
+    let lastError;
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.warn(`AI API Warning (Attempt ${i + 1}):`, JSON.stringify(errorData));
+                if (response.status >= 500 && i < retries - 1) {
+                    await new Promise(res => setTimeout(res, 1000 * (i + 1))); // exponential backoff
+                    continue;
+                }
+                throw new Error(`AI API request failed with status ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error: any) {
+            lastError = error;
+            if (i < retries - 1) {
+                await new Promise(res => setTimeout(res, 1000 * (i + 1)));
+                continue;
+            }
+        }
+    }
+    throw lastError;
+};
+
 export const generateQuestions = async (goalTitle: string, deadline: Date, context: string = ''): Promise<string[]> => {
     const today = new Date();
     const diffTime = Math.abs(deadline.getTime() - today.getTime());
@@ -56,36 +90,28 @@ export const generateQuestions = async (goalTitle: string, deadline: Date, conte
       Generate ${numQuestions} short, specific questions to help me clarify the scope and break this down into actionable tasks.
       
       IMPORTANT CONSTRAINTS:
-        1. Do NOT ask about the deadline, start date, or duration.I have already provided this.
-      2. Focus on the * content *, * resources *, * preferences *, or * sub - goals *.
+        1. Do NOT ask about the deadline, start date, or duration. I have already provided this.
+        2. If the goal seems to be an ongoing habit or continuous learning (e.g., learning a language, exercising), focus questions on the *tools* (e.g., Duolingo, gym class), *frequency*, and *routine* to establish.
+        3. If the goal is a finite project, focus on the *content*, *resources*, *preferences*, or *sub-goals*.
       
       Return ONLY a JSON array of strings.Example: ["Question 1?", "Question 2?"]
     `;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: prompt
-                    }]
+        const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            contents: [{
+                parts: [{
+                    text: prompt
                 }]
-            })
+            }],
+            generationConfig: {
+                responseMimeType: "application/json"
+            }
         });
-
-        if (!response.ok) {
-            throw new Error(`AI API request failed with status ${response.status}`);
-        }
-
-        const data = await response.json();
         const text = data.candidates[0].content.parts[0].text;
         return parseAIResponse(text);
 
     } catch (error) {
-        console.error('AI Question Generation Error:', error);
+        console.warn('AI Question Generation Warning:', error);
         return [
             "What is the most important outcome?",
             "Are there any blockers?",
@@ -131,14 +157,16 @@ export const generateSteps = async (goalTitle: string, deadline: Date, contextAn
       Create a strategic plan consisting of **${Math.max(1, Math.floor(idealTasks * 0.5))} to ${maxTasks}** distinct MILESTONES.
       
       **CRITICAL REASONING & CONSTRAINTS:**
-      1.  **Analyze the User's Intent:**
-          - IF the user provides specific numbers (e.g., "Read 5 books"), your milestones MUST reflect this structure (e.g., "Book 1", "Book 2").
-          - IF the goal is broad (e.g., "Learn Python"), create logical PHASES (e.g., "Basics", "Advanced Concepts", "Project Build").
+      1.  **Analyze the User's Intent (Project vs Habit):**
+          - IS THIS A FINITE PROJECT? (e.g., "Build a website", "Read 5 books"). If so, create logical PHASES or deliverables (e.g., "Design mockups", "Book 1").
+          - IS THIS A CONTINUOUS HABIT/LEARNING GOAL? (e.g., "Learn Japanese", "Exercise more"). If so, create milestones based on TIME or CONSISTENCY (e.g., "Week 1: Establish Routine", "Month 1: 20 days of consistent practice"). Do NOT decompose the learning content itself (e.g., "Learn basic vocabulary") for habit goals.
+          - **CRITICAL - USER METHODS:** Read the Initial Context and User Q&A Context carefully. If the user specifies particular methods, tools, or resources (e.g., "Duolingo", "Read books", "Anki"), your milestones MUST strictly reflect the usage of those specific tools (e.g., "Use Duolingo for 7 consecutive days", "Read first 50 pages"). NEVER invent generic milestones like "Master basic grammar" or "Learn vocabulary" if the user has provided their own methods.
       
       2.  **Milestone Definition:**
-          - A "Milestone" is a **significant checkpoint** or **deliverable**, NOT a small daily chore.
-          - **Bad:** "Open the book" (Too small)
-          - **Good:** "Complete Chapter 1-3 & Exercises" (Substantial)
+          - A "Milestone" is a **significant checkpoint**, **deliverable**, or a **consistency target**.
+          - **Bad:** "Open the app today" (Too small for a milestone)
+          - **Good (Project):** "Complete Chapter 1-3 & Exercises" (Substantial deliverable)
+          - **Good (Habit):** "Complete 14 consecutive days of practice" (Consistency target)
       
       3.  **Time Estimation:**
           - Assign an \`estimatedMinutes\` value to each milestone.
@@ -164,27 +192,16 @@ export const generateSteps = async (goalTitle: string, deadline: Date, contextAn
             }
     `;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: prompt
-                    }]
+        const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            contents: [{
+                parts: [{
+                    text: prompt
                 }]
-            })
+            }],
+            generationConfig: {
+                responseMimeType: "application/json"
+            }
         });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error('AI API Error:', errorData);
-            throw new Error(`AI API request failed with status ${response.status}`);
-        }
-
-        const data = await response.json();
 
         if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
             console.error('Invalid AI response format:', data);
@@ -203,6 +220,7 @@ export const generateSteps = async (goalTitle: string, deadline: Date, contextAn
             isCompleted: false,
             effort: s.effort || 3,
             estimatedMinutes: s.estimatedMinutes || 60, // Default to 60m if missing
+            category: parsedData.category as SlotCategory,
             isMilestone: true,
         }));
 
@@ -234,7 +252,7 @@ export const generateSteps = async (goalTitle: string, deadline: Date, contextAn
         return { steps, category: parsedData.category as SlotCategory };
 
     } catch (error) {
-        console.error('AI Generation Error:', error);
+        console.warn('AI Generation Warning:', error);
         return generateMockSteps(goalTitle, deadline);
     }
 };
@@ -297,7 +315,7 @@ export const generateSubtasks = async (milestoneTitle: string, milestoneDescript
     });
 };
 
-export const splitMilestone = async (title: string, description: string, totalMinutes: number, category: string, parentId: string = '', mode: 'ai' | 'generic' = 'ai', parentEffort: number = 2, goalTitle: string = '', goalContext: string = ''): Promise<Step[]> => {
+export const splitMilestone = async (title: string, description: string, totalMinutes: number, category: string, parentId: string = '', mode: 'ai' | 'generic' = 'ai', parentEffort: number = 2, goalTitle: string = '', goalContext: string = '', previousMilestoneContext: string = ''): Promise<Step[]> => {
     if (mode === 'generic') {
         return generateSubtasks(title, description, totalMinutes, parentId, category as SlotCategory, parentEffort);
     }
@@ -314,22 +332,28 @@ export const splitMilestone = async (title: string, description: string, totalMi
             - **Milestone:** "${title}"
             - **Description:** "${description}"
             - **Total Time Budget:** ${totalMinutes} minutes
-            - **Category:** "${category}"
+            - **CATEGORY:** "${category}"
             - **PARENT GOAL:** "${goalTitle}"
             - **ADDITIONAL CONTEXT:** "${goalContext}"
+            ${previousMilestoneContext ? `- **PREVIOUS HABITS TO CONTINUE:** "${previousMilestoneContext}"` : ''}
 
             **OBJECTIVE:**
             Generate a list of sub-tasks that are **atomic**, **action-oriented**, and **chronologically ordered**.
             Use the Parent Goal and Context to tailor the tone, complexity, and specific steps to the user's actual objective.
 
             **STRICT CONSTRAINTS:**
-            1.  **Time Integrity:** The sum of \`estimatedMinutes\` for all sub-tasks should be CLOSE to **${totalMinutes} minutes**. It does not need to be exact, but ensure the total scope fits the budget.
-            2.  **Granularity:**
-                - Tasks should typically range from **15 to 60 minutes**.
-                - If the milestone is short (< 30m), 1-2 tasks are fine.
-                - If long (> 2h), break it down further.
-            3.  **Action Verbs:** Start every title with a strong verb (e.g., "Draft", "Research", "Compile", "Review").
-            4.  **Logical Flow:** Ensure the steps follow a natural progression (e.g., Research -> Draft -> Edit).
+            1.  **Identify the Goal Type:** Is the Parent Goal a continuous habit/learning process (e.g., learning a language using an app) or a finite project?
+            2.  **Habit/Continuous Learning Logic:** If it IS a habit goal, generate sub-tasks representing the ongoing actions. These MUST be repeatable, atomic actions focused on the *routine* and *tools*, NOT the educational curriculum.
+                - **CRITICAL CONTEXT ADHERENCE:** If the PARENT GOAL or ADDITIONAL CONTEXT mentions specific tools or methods (e.g., "Duolingo", "reading books"), you MUST create tasks exactly for those methods. NEVER generate generic learning tasks like "Learn grammar", "Study vocabulary", or "Review syntax".
+                - If the user mentions multiple distinct methods (e.g., Duolingo AND books), create one separate habit sub-task for each distinct method. If only one method/process is mentioned or implied, generate **ONLY ONE** sub-task.
+                - **Bad:** "Learn 10 new words", "Study chapters 1-3" (Content-focused)
+                - **Good:** "Practice 15 minutes on Duolingo", "Read a chapter of a Portuguese book" (Action-focused)
+                - For habits, do NOT create multiple steps to fill the time block. Provide the correct \\\`habitDaysOfWeek\\\` array.
+                - **CRITICAL:** If there are **PREVIOUS HABITS TO CONTINUE** in the context, you MUST include them as habit sub-tasks in this milestone to ensure the user continues their routine.
+            3.  **Project Logic:** If it IS a finite project, follow a logical progression (e.g., Research -> Draft -> Edit).
+            4.  **Time Integrity:** For normal projects, the sum of \\\`estimatedMinutes\\\` for all sub-tasks should be CLOSE to **${totalMinutes} minutes**. For habits, \\\`estimatedMinutes\\\` should just be the duration of a single session.
+            5.  **Granularity:** Tasks should range from **15 to 60 minutes**.
+            6.  **Action Verbs:** Start every title with a strong, unambiguous verb.
 
             **OUTPUT FORMAT:**
             Return ONLY a valid JSON object.
@@ -340,31 +364,24 @@ export const splitMilestone = async (title: string, description: string, totalMi
                         "title": "string",
                         "description": "string",
                         "effort": number (1-5),
-                        "estimatedMinutes": number
+                        "estimatedMinutes": number,
+                        "isHabit": boolean (true if this should be a repeating habit, optional),
+                        "habitDaysOfWeek": number[] (array of days 0=Sunday to 6=Saturday, required if isHabit is true)
                     }
                 ]
             }
         `;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: prompt
-                    }]
+        const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            contents: [{
+                parts: [{
+                    text: prompt
                 }]
-            })
+            }],
+            generationConfig: {
+                responseMimeType: "application/json"
+            }
         });
-
-        if (!response.ok) {
-            throw new Error(`AI API request failed with status ${response.status}`);
-        }
-
-        const data = await response.json();
         const text = data.candidates[0].content.parts[0].text;
         const parsedData = parseAIResponse(text);
 
@@ -377,31 +394,37 @@ export const splitMilestone = async (title: string, description: string, totalMi
             isCompleted: false,
             effort: parentEffort, // Inherit parent effort, overriding AI suggestion
             estimatedMinutes: s.estimatedMinutes,
+            category: category as SlotCategory,
             isMilestone: false, // Sub-tasks are NOT milestones
+            isHabit: s.isHabit,
+            habitDaysOfWeek: s.habitDaysOfWeek,
         }));
 
         // Force time integrity: Adjust last step to ensure sum equals totalMinutes
         // We still do this to keep the UI consistent, even if the AI was loose
-        const currentSum = steps.reduce((sum: number, s: any) => sum + s.estimatedMinutes, 0);
-        const difference = totalMinutes - currentSum;
+        // EXCEPT for habits, where we want to keep the single session duration
+        if (steps.length > 0 && !steps.some((s: any) => s.isHabit)) {
+            const currentSum = steps.reduce((sum: number, s: any) => sum + s.estimatedMinutes, 0);
+            const difference = totalMinutes - currentSum;
 
-        if (difference !== 0 && steps.length > 0) {
-            const lastStep = steps[steps.length - 1];
-            // Ensure we don't make the task disappear or become negative
-            const newDuration = Math.max(5, lastStep.estimatedMinutes + difference);
+            if (difference !== 0) {
+                const lastStep = steps[steps.length - 1];
+                // Ensure we don't make the task disappear or become negative
+                const newDuration = Math.max(5, lastStep.estimatedMinutes + difference);
 
-            // If the adjustment would be too drastic, we might need a better strategy, 
-            // but for now, we absorb the error in the last task.
-            lastStep.estimatedMinutes = newDuration;
+                // If the adjustment would be too drastic, we might need a better strategy, 
+                // but for now, we absorb the error in the last task.
+                lastStep.estimatedMinutes = newDuration;
 
-            // If the adjustment resulted in a change (it should), we are good. 
-            // If newDuration was clamped to 5, the total might still be off, but it's safer than negative.
+                // If the adjustment resulted in a change (it should), we are good. 
+                // If newDuration was clamped to 5, the total might still be off, but it's safer than negative.
+            }
         }
 
         return steps;
 
     } catch (error) {
-        console.error('AI Split Error:', error);
+        console.warn('AI Split Warning:', error);
         throw error;
     }
 };

@@ -1,4 +1,4 @@
-import { Step, WeeklySchedule, SlotCategory } from '../types';
+import { Step, WeeklySchedule, SlotCategory, Goal } from '../types';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -32,17 +32,99 @@ export const SchedulerService = {
     },
 
     /**
-     * Distributes tasks into the schedule starting from a specific date.
-     * Returns a new array of steps with 'scheduledDate' assigned.
+     * Calculates the next date a habit should be scheduled based on its frequency.
+     * @param currentDate The date to start searching from.
+     * @param habitDaysOfWeek Array of allowed days (0 = Sunday, ..., 6 = Saturday).
      */
-    distributeTasks: (tasks: Step[], schedule: WeeklySchedule, startDate: Date = new Date()): Step[] => {
+    getNextHabitDate: (currentDate: Date, habitDaysOfWeek?: number[]): Date => {
+        const nextDate = new Date(currentDate);
+        nextDate.setHours(0, 0, 0, 0);
+
+        // If no specific days provided, default to every day
+        const allowedDays = (habitDaysOfWeek && habitDaysOfWeek.length > 0) 
+            ? habitDaysOfWeek 
+            : [0, 1, 2, 3, 4, 5, 6];
+
+        // Ensure we advance at least by one day
+        nextDate.setDate(nextDate.getDate() + 1);
+
+        // Find the next matching day
+        while (!allowedDays.includes(nextDate.getDay())) {
+            nextDate.setDate(nextDate.getDate() + 1);
+        }
+
+        return nextDate;
+    },
+
+    /**
+     * Distributes tasks into the schedule starting from a specific date.
+     * Implements proportional time-blocking based on goal deadlines and remaining effort.
+     */
+    distributeTasks: (tasks: Step[], goals: Goal[], schedule: WeeklySchedule, startDate: Date = new Date()): Step[] => {
         const scheduledTasks: Step[] = [];
         const floatingTasks: Step[] = [];
+        const fixedTasks: Step[] = [];
 
-        // --- SEQUENTIAL MILESTONE LOGIC ---
-        // 1. Identify blocked milestones
-        // A milestone is blocked if it belongs to a goal that has an incomplete milestone with a lower sequenceOrder.
-        const milestones = tasks.filter(t => t.isMilestone);
+        // 1. Separate fixed tasks (events, past tasks, manual fixed dates) and floating tasks
+        const startOfToday = new Date(startDate);
+        startOfToday.setHours(0, 0, 0, 0);
+
+        tasks.forEach(task => {
+            if (task.isCompleted) {
+                // If a habit was completed but we haven't recycled it yet (shouldn't happen often if toggleStep handles it, but just in case)
+                scheduledTasks.push(task);
+            } else if (task.date) {
+                const taskDate = new Date(task.date);
+                taskDate.setHours(0, 0, 0, 0);
+                
+                if (taskDate < startOfToday) {
+                    // Task is in the past.
+                    if (task.isHabit) {
+                        // Fail state for habit: missed the deadline. Reset streak and move to today/next active day.
+                        const resetTask = { 
+                            ...task, 
+                            currentStreak: 0,
+                            // Ensure it's scheduled for a valid day starting from today
+                        };
+                        
+                        // Check if today is a valid day, otherwise find the next one
+                        const allowedDays = (task.habitDaysOfWeek && task.habitDaysOfWeek.length > 0) ? task.habitDaysOfWeek : [0, 1, 2, 3, 4, 5, 6];
+                        if (allowedDays.includes(startOfToday.getDay())) {
+                            resetTask.date = new Date(startOfToday); // Today
+                            floatingTasks.push(resetTask); 
+                        } else {
+                            // Find the next valid day from today (not tomorrow)
+                            const nextDate = new Date(startOfToday);
+                            while (!allowedDays.includes(nextDate.getDay())) {
+                                nextDate.setDate(nextDate.getDate() + 1);
+                            }
+                            resetTask.date = nextDate;
+                            
+                            // If it's pushed to a future date, it becomes a fixed task
+                            if (nextDate > startOfToday) {
+                                fixedTasks.push(resetTask);
+                                scheduledTasks.push({ ...resetTask, scheduledDate: nextDate });
+                            } else {
+                                floatingTasks.push(resetTask);
+                            }
+                        }
+                    } else {
+                        // Regular task in the past, just reschedule
+                        floatingTasks.push(task); 
+                    }
+                } else {
+                    fixedTasks.push(task);
+                    scheduledTasks.push({ ...task, scheduledDate: taskDate });
+                }
+            } else {
+                floatingTasks.push(task);
+            }
+        });
+
+        if (floatingTasks.length === 0) return scheduledTasks;
+
+        // 2. Identify blocked milestones (Sequential logic)
+        const milestones = floatingTasks.filter(t => t.isMilestone);
         const milestonesByGoal: Record<string, Step[]> = {};
 
         milestones.forEach(m => {
@@ -53,112 +135,170 @@ export const SchedulerService = {
         });
 
         const blockedMilestoneIds = new Set<string>();
-
         Object.values(milestonesByGoal).forEach(goalMilestones => {
-            // Sort by sequenceOrder (ascending)
             goalMilestones.sort((a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0));
-
             let blocked = false;
             for (const m of goalMilestones) {
                 if (blocked) {
                     blockedMilestoneIds.add(m.id);
                 } else if (!m.isCompleted) {
-                    // Found the first incomplete milestone.
-                    // This one is ACTIVE.
-                    // All SUBSEQUENT ones are BLOCKED.
                     blocked = true;
                 }
             }
         });
-        // ----------------------------------
 
-        // Track used time per day/category
+        // Track used time per day/category (including fixed tasks)
         const dailyUsage: Record<string, Record<string, number>> = {};
         const getUsageKey = (date: Date) => date.toDateString();
 
-        // 1. Process tasks
-        tasks.forEach(task => {
-            // Skip tasks belonging to blocked milestones
-            if (task.parentId && blockedMilestoneIds.has(task.parentId)) {
-                return;
-            }
-
-            if (task.isCompleted) {
-                scheduledTasks.push(task);
-            } else if (task.date) {
-                const taskDate = new Date(task.date);
-                const startOfToday = new Date(startDate);
-                startOfToday.setHours(0, 0, 0, 0);
-
-                // If task is in the past (overdue), treat as floating to reschedule it
-                if (taskDate < startOfToday) {
-                    floatingTasks.push(task);
-                } else {
-                    // Future fixed date task (Manual)
-                    const category = task.category || ' WORK ';
-                    const effort = task.estimatedMinutes || 60;
-
-                    const dateKey = getUsageKey(taskDate);
-                    if (!dailyUsage[dateKey]) dailyUsage[dateKey] = {};
-                    dailyUsage[dateKey][category] = (dailyUsage[dateKey][category] || 0) + effort;
-
-                    scheduledTasks.push({
-                        ...task,
-                        scheduledDate: taskDate
-                    });
-                }
-            } else {
-                floatingTasks.push(task);
-            }
+        fixedTasks.forEach(task => {
+            const taskDate = new Date(task.date!);
+            const category = task.category || ' WORK ';
+            const effort = task.estimatedMinutes || 60;
+            const dateKey = getUsageKey(taskDate);
+            if (!dailyUsage[dateKey]) dailyUsage[dateKey] = {};
+            dailyUsage[dateKey][category] = (dailyUsage[dateKey][category] || 0) + effort;
         });
 
-        // 2. Sort floating tasks by sequenceOrder
-        floatingTasks.sort((a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0));
+        // 3. Prepare task queues per goal
+        // Filter out blocked tasks and group by goal
+        const activeTasks = floatingTasks.filter(t => !t.parentId || !blockedMilestoneIds.has(t.parentId));
 
-        // 3. Distribute floating tasks
+        // Group tasks by Goal ID (tasks without Goal ID go to an "orphan" group)
+        const tasksByGoal: Record<string, Step[]> = { '_orphan': [] };
+        activeTasks.forEach(task => {
+            const gid = task.goalId || '_orphan';
+            if (!tasksByGoal[gid]) tasksByGoal[gid] = [];
+            tasksByGoal[gid].push(task);
+        });
+
+        // Sort tasks within each goal by sequenceOrder
+        Object.keys(tasksByGoal).forEach(gid => {
+            tasksByGoal[gid].sort((a, b) => {
+                if (a.isMilestone !== b.isMilestone) return a.isMilestone ? -1 : 1; // Prioritize milestones
+                return (a.sequenceOrder || 0) - (b.sequenceOrder || 0);
+            });
+        });
+
+        // 4. Distribute tasks day by day
         let currentDate = new Date(startDate);
         currentDate.setHours(0, 0, 0, 0);
 
-        let taskIndex = 0;
+        let remainingGoalsCount = Object.keys(tasksByGoal).filter(g => tasksByGoal[g].length > 0).length;
         let daysChecked = 0;
         const MAX_DAYS_LOOKAHEAD = 365;
 
-        while (taskIndex < floatingTasks.length && daysChecked < MAX_DAYS_LOOKAHEAD) {
-            const task = floatingTasks[taskIndex];
-            const category = task.category || ' WORK ';
-            const effort = task.estimatedMinutes || 60;
-
-            // Check availability
-            const available = SchedulerService.getAvailableMinutes(currentDate, category, schedule);
-
+        while (remainingGoalsCount > 0 && daysChecked < MAX_DAYS_LOOKAHEAD) {
             const dateKey = getUsageKey(currentDate);
             if (!dailyUsage[dateKey]) dailyUsage[dateKey] = {};
-            const used = dailyUsage[dateKey][category] || 0;
 
-            if (available - used >= effort) {
-                // Schedule it
-                scheduledTasks.push({
-                    ...task,
-                    scheduledDate: new Date(currentDate),
+            // Calculate goal weights for today based on urgency and remaining effort
+            const goalWeights: Record<string, number> = {};
+            let totalWeight = 0;
+
+            Object.keys(tasksByGoal).forEach(gid => {
+                if (tasksByGoal[gid].length === 0) return;
+
+                const goal = goals.find(g => g.id === gid);
+                let weight = 1.0;
+
+                if (goal && goal.deadline) {
+                    const diffTime = new Date(goal.deadline).getTime() - currentDate.getTime();
+                    const daysRestants = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+
+                    const effortRestant = tasksByGoal[gid].reduce((sum, t) => sum + (t.estimatedMinutes || 60), 0);
+
+                    // Poids cible : minutes requises par jour pour finir à temps
+                    weight = effortRestant / daysRestants;
+                    // Boost pour les objectifs très urgents (deadline < 3 jours)
+                    if (daysRestants <= 3) weight *= 2.0;
+                } else if (gid === '_orphan') {
+                    // Tâches orphelines (ex: Brain dumps) : on leur donne un petit poids par défaut
+                    weight = 30.0; // 30 mins/day target
+                }
+
+                goalWeights[gid] = Math.max(10, weight); // Minimum weight to avoid starvation
+                totalWeight += goalWeights[gid];
+            });
+
+            // If we have no weight calculated, something went wrong, let's distribute evenly
+            if (totalWeight === 0) {
+                const equalWeight = 1 / Object.keys(tasksByGoal).filter(g => tasksByGoal[g].length > 0).length;
+                Object.keys(tasksByGoal).forEach(gid => {
+                    if (tasksByGoal[gid].length > 0) goalWeights[gid] = equalWeight;
+                });
+                totalWeight = 1.0;
+            }
+
+            // Pour chaque catégorie, allouer le temps proportionnellement
+            const categories: SlotCategory[] = [' WORK ', 'PROJECTS', 'PERSONAL', 'STUDY'];
+
+            categories.forEach(category => {
+                const available = SchedulerService.getAvailableMinutes(currentDate, category, schedule);
+                let timeRemaining = available - (dailyUsage[dateKey][category] || 0);
+
+                if (timeRemaining <= 0) return;
+
+                // Budgets for this category today
+                const goalBudgets: { gid: string, budget: number }[] = [];
+                Object.keys(tasksByGoal).forEach(gid => {
+                    const queueCategory = tasksByGoal[gid].length > 0 ? (tasksByGoal[gid][0].category || ' WORK ') : null;
+                    if (tasksByGoal[gid].length > 0 && queueCategory === category) {
+                        const budget = timeRemaining * (goalWeights[gid] / totalWeight);
+                        goalBudgets.push({ gid, budget: Math.floor(budget) });
+                    }
                 });
 
-                dailyUsage[dateKey][category] = used + effort;
-                taskIndex++;
-            } else {
-                // Try next day
-                currentDate.setDate(currentDate.getDate() + 1);
-                daysChecked++;
-            }
+                // Sort goals by budget descending to process those with largest allocation first
+                goalBudgets.sort((a, b) => b.budget - a.budget);
+
+                // Round-robin assignment within the allocated budgets
+                let madeProgress = true;
+                while (madeProgress && timeRemaining > 0) {
+                    madeProgress = false;
+
+                    for (const { gid } of goalBudgets) {
+                        const queue = tasksByGoal[gid];
+                        const taskCategory = queue.length > 0 ? (queue[0].category || ' WORK ') : null;
+                        if (queue.length === 0 || taskCategory !== category) continue;
+
+                        const task = queue[0];
+                        const effort = task.estimatedMinutes || 60;
+
+                        // On place la tâche si elle rentre dans le temps global restant,
+                        // même si elle dépasse un peu le budget strict (pour éviter le blocage des grosses tâches)
+                        // On limite quand même le dépassement pour laisser de la place aux autres
+                        if (timeRemaining >= effort || (timeRemaining > 0 && effort - timeRemaining < 30)) {
+                            // Schedule task
+                            scheduledTasks.push({
+                                ...task,
+                                scheduledDate: new Date(currentDate)
+                            });
+
+                            dailyUsage[dateKey][category] = (dailyUsage[dateKey][category] || 0) + effort;
+                            timeRemaining -= effort;
+                            queue.shift(); // Remove from queue
+                            madeProgress = true;
+                        }
+                    }
+                }
+            });
+
+            // Move to next day
+            currentDate.setDate(currentDate.getDate() + 1);
+            daysChecked++;
+            remainingGoalsCount = Object.keys(tasksByGoal).filter(g => tasksByGoal[g].length > 0).length;
         }
 
-        // If we ran out of days, just append remaining tasks to the last checked day (fallback)
-        while (taskIndex < floatingTasks.length) {
-            scheduledTasks.push({
-                ...floatingTasks[taskIndex],
-                scheduledDate: new Date(currentDate), // Late schedule
+        // If we ran out of days, append remaining tasks to the last day
+        Object.keys(tasksByGoal).forEach(gid => {
+            tasksByGoal[gid].forEach(task => {
+                scheduledTasks.push({
+                    ...task,
+                    scheduledDate: new Date(currentDate)
+                });
             });
-            taskIndex++;
-        }
+        });
 
         return scheduledTasks;
     }

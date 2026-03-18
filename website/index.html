@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eôs — Stop Managing Tasks. Start Directing Time.</title>
+    <meta name="description"
+        content="Eôs is the ultra-premium productivity app that structures your goals, auto-schedules your week, and creates the deep focus you need to achieve what actually matters.">
+    <meta name="keywords"
+        content="productivity, time management, goal tracker, deep work, focus app, scheduling, task management, iOS app">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Eôs — Stop Managing Tasks. Start Directing Time.">
+    <meta property="og:description"
+        content="The ultra-premium app to structure your goals, auto-schedule your week, and achieve deep work.">
+    <meta property="og:image" content="./assets/dashboard.png">
+    <meta property="og:url" content="https://eos-app.com">
+    <meta property="og:type" content="website">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Eôs — Stop Managing Tasks. Start Directing Time.">
+    <meta name="twitter:description"
+        content="The ultra-premium app to structure your goals, auto-schedule your week, and achieve deep work.">
+    <meta name="twitter:image" content="./assets/dashboard.png">
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://eos-app.com">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Inter:wght@400;500&family=Roboto+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="./css/styles.css">
+    <script src="./js/main.js" defer></script>
+</head>
+
+<body>
+
+    <!-- ======== NOISE OVERLAY ======== -->
+    <canvas id="noiseCanvas" aria-hidden="true"></canvas>
+
+    <!-- ======== HEADER ======== -->
+    <header class="site-header" id="siteHeader">
+        <div class="container header-container">
+            <a href="#" class="logo" aria-label="Eôs Home">
+                <span class="logo-icon">◈</span>
+                <span class="logo-text">Eôs</span>
+            </a>
+            <nav class="nav-links" aria-label="Main navigation">
+                <a href="#problem">The Problem</a>
+                <a href="#features">Features</a>
+                <a href="#howitworks">How It Works</a>
+                <a href="./contact.html">Contact</a>
+            </nav>
+            <a href="#download" class="btn btn-primary header-cta">
+                <span>Download Now</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+            </a>
+            <button class="hamburger" id="hamburger" aria-label="Toggle menu" aria-expanded="false">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </header>
+
+    <main>
+
+        <!-- ======== HERO ======== -->
+        <section class="hero-section" aria-labelledby="hero-heading">
+            <div class="hero-bg-glow" aria-hidden="true"></div>
+            <div class="container hero-container">
+
+                <div class="hero-content">
+                    <div class="pill-badge reveal" data-delay="0">
+                        <span class="pill-dot"></span>
+                        Available soon on iOS &amp; Android
+                    </div>
+                    <h1 class="hero-title reveal" data-delay="100" id="hero-heading">
+                        Stop managing tasks.<br>
+                        <em>Start directing</em> time.
+                    </h1>
+                    <p class="hero-subtitle reveal" data-delay="200">
+                        Eôs is the ultra-premium productivity app that unifies your goals, auto-schedules your week, and
+                        creates the conditions for deep, serene focus.
+                    </p>
+                    <div class="hero-actions reveal" data-delay="300">
+                        <a href="#download" class="btn btn-primary btn-large">
+                            Start for free
+                        </a>
+                        <a href="#features" class="btn btn-ghost btn-large">
+                            See how it works
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M12 5v14M5 12l7 7 7-7" />
+                            </svg>
+                        </a>
+                    </div>
+                    <div class="hero-social-proof reveal" data-delay="400">
+                        <!--<div class="proof-avatars">
+                            <span class="avatar av1">S</span>
+                            <span class="avatar av2">E</span>
+                            <span class="avatar av3">M</span>
+                            <span class="avatar av4">A</span>
+                        </div>
+                        <p><strong>1,200+ creators</strong> reclaimed their focus</p>-->
+                    </div>
+                </div>
+
+                <div class="hero-visual reveal" data-delay="150" id="heroVisual">
+                    <div class="mockup-wrapper">
+                        <img src="./assets/dashboard.png"
+                            alt="Eôs dashboard showing weekly calendar, tasks, and goal progress" class="hero-mockup"
+                            id="heroMockup" loading="eager">
+                        <!-- Floating Cards -->
+                        <div class="float-card float-card--top">
+                            <div class="float-card__icon">✓</div>
+                            <div>
+                                <div class="float-card__title">Deep Work Session</div>
+                                <div class="float-card__sub mono">2h 30m — completed</div>
+                            </div>
+                        </div>
+                        <div class="float-card float-card--bottom">
+                            <div class="float-card__icon progress-icon">
+                                <svg viewBox="0 0 36 36" width="32" height="32">
+                                    <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.1)"
+                                        stroke-width="3" />
+                                    <circle cx="18" cy="18" r="15" fill="none" stroke="#E56B4E" stroke-width="3"
+                                        stroke-dasharray="74 96" stroke-linecap="round" transform="rotate(-90 18 18)" />
+                                </svg>
+                                <span>74%</span>
+                            </div>
+                            <div>
+                                <div class="float-card__title">Product Launch</div>
+                                <div class="float-card__sub mono">Goal Progress</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <!-- Scroll indicator -->
+            <div class="scroll-indicator" aria-hidden="true">
+                <span>Scroll to explore</span>
+                <div class="scroll-dot"></div>
+            </div>
+        </section>
+
+        <!-- ======== PROBLEM SECTION ======== -->
+        <section id="problem" class="problem-section" aria-labelledby="problem-heading">
+            <div class="container">
+                <div class="problem-grid">
+                    <div class="problem-content reveal" data-delay="0">
+                        <span class="section-eyebrow">The Problem</span>
+                        <h2 id="problem-heading">Your to-do list is full. Your life feels empty.</h2>
+                        <p>Productivity apps turned us into task robots. We check boxes all day and still feel like
+                            we've accomplished nothing of substance. We fragment our time, ignore our biggest goals, and
+                            mistake <em>activity</em> for <em>progress</em>.</p>
+                        <p class="mt-1">There's a better way.</p>
+                    </div>
+                    <div class="problem-cards reveal" data-delay="150">
+                        <div class="problem-card">
+                            <div class="problem-card__icon">⚡</div>
+                            <h3>Constant context&#8209;switching</h3>
+                            <p>Every notification pulls you away from your one most important task.</p>
+                        </div>
+                        <div class="problem-card">
+                            <div class="problem-card__icon">🗓️</div>
+                            <h3>No alignment between time & goals</h3>
+                            <p>You plan big goals but your calendar is a chaotic mess that ignores them.</p>
+                        </div>
+                        <div class="problem-card">
+                            <div class="problem-card__icon">🔥</div>
+                            <h3>Burnout from the wrong priorities</h3>
+                            <p>You work hard on urgent things, but the important things never get done.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== SOLUTION INTRO ======== -->
+        <section class="solution-intro-section">
+            <div class="container">
+                <div class="solution-intro-text reveal">
+                    <span class="section-eyebrow">The Solution</span>
+                    <h2>Eôs: the app that <em>directs</em> your time.</h2>
+                    <p>Instead of giving you another list, Eôs understands your goals and their deadlines, respects your
+                        energy, and automatically builds a week that actually moves you forward.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== FEATURES SCROLLYTELLING ======== -->
+        <section id="features" class="features-section" aria-labelledby="features-heading">
+            <div class="container">
+                <h2 class="sr-only" id="features-heading">Key Features</h2>
+
+                <div class="feature-block reveal" data-delay="0">
+                    <div class="feature-text">
+                        <span class="feature-number mono">01</span>
+                        <h2 class="feature-title">Your goals. Your week. <br>Perfectly aligned.</h2>
+                        <p class="feature-desc">Set your goals and their deadlines. Eôs automatically distributes the
+                            required work across your available time — no manual planning needed. Every task serves a
+                            purpose.</p>
+                        <ul class="feature-checklist">
+                            <li>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                Auto task breakdown
+                            </li>
+                            <li>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                Smart deadline scheduling
+                            </li>
+                            <li>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                Visual progress rings
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="feature-image">
+                        <img src="./assets/goals.png"
+                            alt="Eôs Goal Detail screen showing progress ring, subtasks, and deadline" loading="lazy">
+                    </div>
+                </div>
+
+                <div class="feature-block feature-block--reversed reveal" data-delay="0">
+                    <div class="feature-text">
+                        <span class="feature-number mono">02</span>
+                        <h2 class="feature-title">Time-blocking that <br>adapts to your energy.</h2>
+                        <p class="feature-desc">Tell Eôs your energy level each morning — High, Medium, or Low. The
+                            scheduler adapts, placing demanding deep-work tasks when you're sharp, and lighter tasks
+                            when you're winding down.</p>
+                        <ul class="feature-checklist">
+                            <li>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                Energy-aware scheduling
+                            </li>
+                            <li>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                Color-coded time blocks
+                            </li>
+                            <li>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                Google Calendar sync
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="feature-image">
+                        <img src="./assets/schedule.png"
+                            alt="Eôs Schedule view with color-coded time blocks and energy level selector"
+                            loading="lazy">
+                    </div>
+                </div>
+
+                <div class="feature-block reveal" data-delay="0">
+                    <div class="feature-text">
+                        <span class="feature-number mono">03</span>
+                        <h2 class="feature-title">A calm dashboard<br>for a clear mind.</h2>
+                        <p class="feature-desc">No red badges. No notification noise. Your Eôs dashboard shows exactly
+                            what to focus on today, with a beautiful weekly timeline, your active goals, and only the
+                            tasks that matter right now.</p>
+                        <ul class="feature-checklist">
+                            <li>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                One focused daily view
+                            </li>
+                            <li>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                Weekly calendar at a glance
+                            </li>
+                            <li>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                Instant brain dump capture
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="feature-image">
+                        <img src="./assets/dashboard.png"
+                            alt="Eôs Dashboard with weekly calendar and task list on dark background" loading="lazy">
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ======== HOW IT WORKS ======== -->
+        <section id="howitworks" class="steps-section" aria-labelledby="steps-heading">
+            <div class="container">
+                <div class="steps-header reveal">
+                    <span class="section-eyebrow">How It Works</span>
+                    <h2 id="steps-heading">From chaos to clarity in minutes.</h2>
+                </div>
+                <div class="steps-grid">
+                    <div class="step-item reveal" data-delay="0">
+                        <div class="step-num mono">01</div>
+                        <h3>Set your goals &amp; deadline</h3>
+                        <p>Add what you want to achieve and when — a product launch, a book, a fitness goal. Eôs
+                            understands the scope.</p>
+                    </div>
+                    <div class="step-divider" aria-hidden="true">→</div>
+                    <div class="step-item reveal" data-delay="100">
+                        <div class="step-num mono">02</div>
+                        <h3>Connect your calendar</h3>
+                        <p>Sync with Google Calendar. Eôs sees your existing commitments and schedules around them
+                            intelligently.</p>
+                    </div>
+                    <div class="step-divider" aria-hidden="true">→</div>
+                    <div class="step-item reveal" data-delay="200">
+                        <div class="step-num mono">03</div>
+                        <h3>Let Eôs build your week</h3>
+                        <p>The smart scheduler automatically distributes tasks across your available time, proportional
+                            to each goal's urgency.</p>
+                    </div>
+                    <div class="step-divider" aria-hidden="true">→</div>
+                    <div class="step-item reveal" data-delay="300">
+                        <div class="step-num mono">04</div>
+                        <h3>Enter your flow state</h3>
+                        <p>Each morning, check your dashboard, set your energy level, and focus. Everything is prepared.
+                            Just execute.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== QUOTE / MANIFESTO ======== -->
+        <section class="quote-section" aria-labelledby="quote-heading">
+            <div class="container">
+                <div class="quote-card reveal">
+                    <div class="quote-glow" aria-hidden="true"></div>
+                    <blockquote>
+                        <p>"Eôs is not just a tool. It is a state of mind. The visual language reflects control,
+                            precision, and serenity. We reject the anxiety of traditional productivity tools in favor of
+                            a <strong>Flow</strong> state."</p>
+                        <cite id="quote-heading">— The Eôs Manifesto</cite>
+                    </blockquote>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== WHO IT'S FOR ======== -->
+        <section class="forwhom-section" aria-labelledby="forwhom-heading">
+            <div class="container">
+                <div class="forwhom-header reveal">
+                    <span class="section-eyebrow">Who It's For</span>
+                    <h2 id="forwhom-heading">Built for people who build things.</h2>
+                </div>
+                <div class="forwhom-grid reveal" data-delay="100">
+                    <div class="persona-card">
+                        <div class="persona-icon">🚀</div>
+                        <h3>Entrepreneurs</h3>
+                        <p>Juggling a hundred things. Eôs keeps your vision on track while managing the daily chaos.</p>
+                    </div>
+                    <div class="persona-card">
+                        <div class="persona-icon">💻</div>
+                        <h3>Freelancers</h3>
+                        <p>Multiple clients, unpredictable schedules. Eôs structures your week so you never miss a
+                            deadline.</p>
+                    </div>
+                    <div class="persona-card">
+                        <div class="persona-icon">🎓</div>
+                        <h3>Students</h3>
+                        <p>Finals, projects, and a social life. Eôs intelligently balances your study time against every
+                            deadline.</p>
+                    </div>
+                    <div class="persona-card">
+                        <div class="persona-icon">🎨</div>
+                        <h3>Creatives</h3>
+                        <p>Protect your deep work time. Eôs blocks off the hours you need to create without
+                            interruption.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== FINAL MANIFESTO CTA ======== -->
+        <section class="final-cta-section" aria-labelledby="final-cta-heading">
+            <div class="container">
+                <div class="final-cta-inner reveal">
+                    <p class="final-cta-eyebrow">Your time is finite</p>
+                    <h2 id="final-cta-heading" class="final-cta-title">Spend it on what
+                        <em>actually matters.</em>
+                    </h2>
+                    <a href="#download" class="btn btn-primary btn-large final-cta-btn">Experience Eôs</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======== DOWNLOAD / CTA ======== -->
+        <section id="download" class="cta-section" aria-labelledby="cta-heading">
+            <div class="container">
+                <div class="cta-card reveal">
+                    <div class="cta-glow-left" aria-hidden="true"></div>
+                    <div class="cta-glow-right" aria-hidden="true"></div>
+                    <div class="cta-content">
+                        <span class="section-eyebrow">Get Started Today</span>
+                        <h2 id="cta-heading">Your most productive week<br>starts now.</h2>
+                        <p>Download Eôs for free. No subscriptions, no nonsense. Just focus.</p>
+                        <div class="cta-buttons">
+                            <a href="#" class="store-btn" aria-label="Download on the App Store">
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                                    <path
+                                        d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11" />
+                                </svg>
+                                <div class="store-btn__text">
+                                    <span>Download on the</span>
+                                    <strong>App Store</strong>
+                                </div>
+                            </a>
+                            <a href="#" class="store-btn store-btn--secondary" aria-label="Get it on Google Play">
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                                    <path
+                                        d="M3.18 23.76c.3.16.64.2.97.12l12.02-6.96-2.73-2.74-10.26 9.58zm-1.97-20.4C1.08 3.68 1 4 1 4.38v15.24c0 .38.08.7.21 1.02l.1.1 8.54-8.54v-.2L1.31 3.46l-.1.1zM20.51 10.3l-2.43-1.4-3.03 3.03 3.03 3.03 2.45-1.42c.7-.4.7-1.06 0-1.46l-.02.22zM4.15.73L16.17 7.7 13.44 10.43 3.18.85c.32-.12.66-.14.97.12v-.24z" />
+                                </svg>
+                                <div class="store-btn__text">
+                                    <span>Get it on</span>
+                                    <strong>Google Play</strong>
+                                </div>
+                            </a>
+                        </div>
+                        <p class="cta-subtext mono">Free · No login required to start · Available now</p>
+                    </div>
+                    <div class="cta-visual">
+                        <img src="./assets/dashboard.png" alt="Eôs app preview" class="cta-mockup" loading="lazy">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ======== FOOTER ======== -->
+    <footer class="site-footer" aria-label="Site footer">
+        <div class="container footer-container">
+            <div class="footer-brand">
+                <a href="#" class="logo" aria-label="Eôs Home">
+                    <span class="logo-icon">◈</span>
+                    <span class="logo-text">Eôs</span>
+                </a>
+                <p class="footer-tagline">Focus + Calm.</p>
+            </div>
+            <nav class="footer-links" aria-label="Footer navigation">
+                <a href="./privacy.html">Privacy Policy</a>
+                <a href="./terms.html">Terms of Service</a>
+                <a href="https://discord.gg/GqDgEGvhKc" target="_blank" rel="noopener noreferrer">Community</a>
+                <a href="./contact.html">Contact</a>
+            </nav>
+            <p class="footer-copy mono">© 2026 Eôs. All rights reserved.</p>
+        </div>
+    </footer>
+
+</body>
+
+</html>

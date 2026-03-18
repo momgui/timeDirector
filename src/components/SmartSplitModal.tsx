@@ -20,6 +20,7 @@ interface SmartSplitModalProps {
     onSave: (newSteps: Step[]) => void;
     goalTitle?: string;
     goalContext?: string;
+    previousMilestoneContext?: string;
 }
 
 export const SmartSplitModal: React.FC<SmartSplitModalProps> = ({
@@ -29,6 +30,7 @@ export const SmartSplitModal: React.FC<SmartSplitModalProps> = ({
     onSave,
     goalTitle = '',
     goalContext = '',
+    previousMilestoneContext = '',
 }) => {
     const [loading, setLoading] = useState(false);
     const [proposedSteps, setProposedSteps] = useState<Step[]>([]);
@@ -57,7 +59,8 @@ export const SmartSplitModal: React.FC<SmartSplitModalProps> = ({
                 'ai',
                 milestone.effort || 2,
                 goalTitle,
-                goalContext
+                goalContext,
+                previousMilestoneContext
             );
 
             setProposedSteps(steps);

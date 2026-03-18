@@ -26,6 +26,7 @@ import { BrainDumpModal } from '../components/BrainDumpModal';
 import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal';
 import { EventDetailModal } from '../components/EventDetailModal';
 import { TaskDetailModal } from '../components/TaskDetailModal';
+import { SmartSplitModal } from '../components/SmartSplitModal';
 import { SPACING, RADIUS } from '../design-system/tokens';
 import { useTheme } from '../theme';
 import { v4 as uuidv4 } from 'uuid';
@@ -81,6 +82,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     } | null>(null);
     const [schedule, setSchedule] = useState<WeeklySchedule>({});
     const [energyMode, setEnergyMode] = useState<EnergyMode>('HIGH');
+    const [smartSplitGoalVisible, setSmartSplitGoalVisible] = useState(false);
+    const [currentMilestoneForSplit, setCurrentMilestoneForSplit] = useState<Step | null>(null);
+    const [previousContextForSplit, setPreviousContextForSplit] = useState<string>('');
     const isFocused = useIsFocused();
 
     const scrollY = useRef(new Animated.Value(0)).current;
@@ -199,10 +203,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         }
 
         // Apply dynamic scheduling
-        // Note: SchedulerService might move tasks around. 
-        // We probably want to keep fixed Google Events fixed.
-        // For now, let's just pass everything through.
-        const distributedSteps = SchedulerService.distributeTasks(allSteps, loadedSchedule);
+        // Note: SchedulerService move tasks around. 
+        // We want to keep fixed Google Events fixed.
+        const distributedSteps = SchedulerService.distributeTasks(allSteps, loadedGoals, loadedSchedule);
 
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setGoals(loadedGoals);
@@ -220,7 +223,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         setCreationMenuVisible(true);
     };
 
-    const handleSaveTask = async (title: string, date: Date, description?: string, effort: number = 1, category?: SlotCategory, parentId?: string) => {
+    const handleSaveTask = async (title: string, date: Date, description?: string, effort: number = 1, category?: SlotCategory, parentId?: string, isHabit?: boolean, habitDaysOfWeek?: number[]) => {
         if (editingTask) {
             const updatedStep = {
                 ...editingTask,
@@ -228,7 +231,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 date,
                 description,
                 effort,
-                category: category || editingTask.category
+                category: category || editingTask.category,
+                isHabit: isHabit !== undefined ? isHabit : editingTask.isHabit,
+                habitDaysOfWeek: habitDaysOfWeek !== undefined ? habitDaysOfWeek : editingTask.habitDaysOfWeek
             };
             await updateStep(updatedStep);
         } else {
@@ -242,6 +247,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 category: category || 'PERSONAL',
                 parentId,
                 type: 'task',
+                isHabit: isHabit,
+                habitDaysOfWeek: habitDaysOfWeek,
+                currentStreak: isHabit ? 0 : undefined
             };
             await saveSteps([newStep]);
         }
@@ -319,15 +327,56 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     const toggleStep = async (step: Step) => {
         if (selectionMode) return;
 
+        const isCompleting = !step.isCompleted;
+
+        // Visual update immediately
         const updatedSteps = steps.map(s =>
-            s.id === step.id ? { ...s, isCompleted: !s.isCompleted } : s
+            s.id === step.id ? { ...s, isCompleted: isCompleting } : s
         );
         setSteps(updatedSteps);
 
         setTimeout(async () => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            const updatedStep = { ...step, isCompleted: !step.isCompleted };
-            await updateStep(updatedStep);
+
+            if (step.isHabit && isCompleting) {
+                // Habit validation logic
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const nextDate = SchedulerService.getNextHabitDate(today, step.habitDaysOfWeek);
+
+                const updatedStep: Step = {
+                    ...step,
+                    isCompleted: false, // Keep it unchecked for the next cycle
+                    currentStreak: (step.currentStreak || 0) + 1,
+                    lastCompletedDate: today,
+                    date: nextDate
+                };
+                await updateStep(updatedStep);
+            } else {
+                // Regular task logic
+                const updatedStep = { ...step, isCompleted: isCompleting };
+                await updateStep(updatedStep);
+
+                // Auto-validate parent milestone if all subtasks are complete
+                if (isCompleting && step.parentId) {
+                    const parent = steps.find(s => s.id === step.parentId);
+                    if (parent && parent.isMilestone && !parent.isCompleted) {
+                        const siblings = updatedSteps.filter(s => s.parentId === step.parentId);
+                        const allCompleted = siblings.every(s => s.isCompleted);
+                        if (allCompleted) {
+                            const updatedParent = { ...parent, isCompleted: true };
+                            await updateStep(updatedParent);
+                            
+                            // If this parent is currently opened in the modal, update it immediately
+                            if (selectedMilestone?.id === parent.id) {
+                                setSelectedMilestone(updatedParent);
+                            }
+                        }
+                    }
+                }
+            }
+
             loadData();
         }, 500);
     };
@@ -616,16 +665,35 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
 
                             <View style={styles.stepContent}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                    <Typography
-                                        variant={isMilestone ? "h3" : "body"}
-                                        color={item.isCompleted && !selectionMode ? colors.textSecondary : colors.textPrimary}
-                                        style={[
-                                            item.isCompleted && !selectionMode ? styles.completedText : undefined,
-                                            { flex: 1, marginRight: SPACING.s }
-                                        ]}
-                                    >
-                                        {item.title}
-                                    </Typography>
+                                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginRight: SPACING.s }}>
+                                        {item.isHabit && (item.currentStreak || 0) > 0 && (
+                                            <View style={{
+                                                flexDirection: 'row',
+                                                alignItems: 'center',
+                                                backgroundColor: colors.surfaceHighlight,
+                                                paddingHorizontal: 6,
+                                                paddingVertical: 2,
+                                                borderRadius: RADIUS.s,
+                                                marginRight: SPACING.s,
+                                                borderWidth: 1,
+                                                borderColor: colors.border
+                                            }}>
+                                                <Typography variant="caption" color={colors.primary} weight="bold">
+                                                    🔥 {item.currentStreak}
+                                                </Typography>
+                                            </View>
+                                        )}
+                                        <Typography
+                                            variant={isMilestone ? "h3" : "body"}
+                                            color={item.isCompleted && !selectionMode ? colors.textSecondary : colors.textPrimary}
+                                            style={[
+                                                item.isCompleted && !selectionMode ? styles.completedText : undefined,
+                                                { flexShrink: 1 }
+                                            ]}
+                                        >
+                                            {item.title}
+                                        </Typography>
+                                    </View>
 
                                     {isEvent && item.date && (
                                         <Typography variant="caption" color={colors.primary} weight="bold">
@@ -675,6 +743,29 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         const isSingleGoal = goals.length === 1;
         const itemWidth = isSingleGoal ? width - (SPACING.l * 2) : CARD_WIDTH;
 
+        const goalMilestones = goalSteps.filter(s => s.isMilestone).sort((a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0));
+        const currentMilestoneIndex = goalMilestones.findIndex(m => !m.isCompleted);
+        const currentMilestone = currentMilestoneIndex !== -1 ? goalMilestones[currentMilestoneIndex] : null;
+        const previousMilestone = currentMilestoneIndex > 0 ? goalMilestones[currentMilestoneIndex - 1] : null;
+
+        let needsNextStep = false;
+        if (currentMilestone && previousMilestone && previousMilestone.isCompleted && !currentMilestone.isCompleted) {
+            const currentSubtasks = goalSteps.filter(s => s.parentId === currentMilestone.id);
+            if (currentSubtasks.length === 0) {
+                needsNextStep = true;
+            }
+        }
+
+        const handleNextStep = () => {
+            if (!currentMilestone || !previousMilestone) return;
+            const previousSubtasks = goalSteps.filter(s => s.parentId === previousMilestone.id && s.isHabit);
+            const pastHabits = previousSubtasks.map(s => s.title).join(', ');
+            const context = pastHabits ? `Habits to continue: ${pastHabits}` : '';
+            setPreviousContextForSplit(context);
+            setCurrentMilestoneForSplit(currentMilestone);
+            setSmartSplitGoalVisible(true);
+        };
+
         return (
             <FadeIn delay={index * 100}>
                 <TouchableOpacity
@@ -705,9 +796,20 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                             )}
                         </View>
                         <ProgressBar progress={progress} style={styles.progressBar} />
-                        <Typography variant="caption" color={colors.textSecondary} align="right" mono>
-                            {Math.round(progress * 100)}% Complete
-                        </Typography>
+                        <View style={{ flexDirection: 'row', justifyContent: needsNextStep ? 'space-between' : 'flex-end', alignItems: 'center', marginTop: SPACING.s }}>
+                            {needsNextStep && (
+                                <View style={{ width: '45%' }}>
+                                    <Button
+                                        title="Next Step"
+                                        size="s"
+                                        onPress={handleNextStep}
+                                    />
+                                </View>
+                            )}
+                            <Typography variant="caption" color={colors.textSecondary} align="right" mono>
+                                {Math.round(progress * 100)}% Complete
+                            </Typography>
+                        </View>
                     </Card>
                 </TouchableOpacity>
             </FadeIn>
@@ -1000,12 +1102,38 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     setSelectedMilestone(subMilestone);
                 }}
                 onToggleSubtask={async (subtask) => {
-                    const updatedSubtask = { ...subtask, isCompleted: !subtask.isCompleted };
+                    const isCompleting = !subtask.isCompleted;
+                    const updatedSubtask = { ...subtask, isCompleted: isCompleting };
                     await updateStep(updatedSubtask);
+                    
+                    if (isCompleting && subtask.parentId) {
+                        const parent = steps.find(s => s.id === subtask.parentId);
+                        if (parent && parent.isMilestone && !parent.isCompleted) {
+                            // Find siblings in current state, excluding the one we just toggled
+                            const siblings = steps.filter(s => s.parentId === subtask.parentId && s.id !== subtask.id);
+                            const allOthersCompleted = siblings.every(s => s.isCompleted);
+                            if (allOthersCompleted) {
+                                const updatedParent = { ...parent, isCompleted: true };
+                                await updateStep(updatedParent);
+                                
+                                if (selectedMilestone?.id === parent.id) {
+                                    setSelectedMilestone(updatedParent);
+                                }
+                            }
+                        }
+                    }
+                    
                     loadData();
                 }}
-                onGenerateSubtasks={() => {
-                    // Optional: implement AI generation later
+                onGenerateSubtasks={async (newSteps) => {
+                    if (!selectedMilestone) return;
+                    const stepsWithKeys = newSteps.map(step => ({
+                        ...step,
+                        goalId: selectedMilestone.goalId,
+                        category: selectedMilestone.category || 'PERSONAL'
+                    }));
+                    await saveSteps(stepsWithKeys);
+                    loadData();
                 }}
                 goalTitle={goals.find(g => g.id === selectedMilestone?.goalId)?.title}
                 goalContext={goals.find(g => g.id === selectedMilestone?.goalId)?.context}
@@ -1069,6 +1197,22 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                         await deleteConfig.onConfirm();
                         setDeleteModalVisible(false);
                     }}
+                />
+            )}
+
+            {smartSplitGoalVisible && currentMilestoneForSplit && (
+                <SmartSplitModal
+                    visible={smartSplitGoalVisible}
+                    milestone={currentMilestoneForSplit}
+                    onClose={() => setSmartSplitGoalVisible(false)}
+                    onSave={async (newSteps) => {
+                        await saveSteps(newSteps);
+                        setSmartSplitGoalVisible(false);
+                        loadData();
+                    }}
+                    goalTitle={goals.find(g => g.id === currentMilestoneForSplit.goalId)?.title || ''}
+                    goalContext=""
+                    previousMilestoneContext={previousContextForSplit}
                 />
             )}
         </Layout>

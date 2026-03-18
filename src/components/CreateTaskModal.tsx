@@ -23,12 +23,14 @@ const getCategoryColor = (category: SlotCategory, categoriesColors: any) => {
 interface CreateTaskModalProps {
     visible: boolean;
     onClose: () => void;
-    onSave: (title: string, date: Date, description?: string, effort?: number, category?: SlotCategory) => void;
+    onSave: (title: string, date: Date, description?: string, effort?: number, category?: SlotCategory, parentId?: string, isHabit?: boolean, habitDaysOfWeek?: number[]) => void;
     initialDate?: Date;
     initialCategory?: SlotCategory;
     initialTitle?: string;
     initialDescription?: string;
     initialEffort?: number;
+    initialIsHabit?: boolean;
+    initialHabitDaysOfWeek?: number[];
     title?: string;
     saveLabel?: string;
 }
@@ -44,6 +46,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     initialTitle = '',
     initialDescription = '',
     initialEffort = 1,
+    initialIsHabit = false,
+    initialHabitDaysOfWeek = [0, 1, 2, 3, 4, 5, 6],
     title = "New Task",
     saveLabel = "Create Task"
 }) => {
@@ -53,9 +57,13 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     const [date, setDate] = useState(initialDate);
     const [effort, setEffort] = useState(initialEffort);
     const [category, setCategory] = useState<SlotCategory | undefined>(initialCategory);
+    const [isHabit, setIsHabit] = useState(initialIsHabit);
+    const [habitDaysOfWeek, setHabitDaysOfWeek] = useState<number[]>(initialHabitDaysOfWeek);
     const [showDatePicker, setShowDatePicker] = useState(false);
 
-    // Reset state when visible or initial props change
+    const DAY_NAMES = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+    // Reset state when visible changes
     React.useEffect(() => {
         if (visible) {
             setTaskTitle(initialTitle);
@@ -63,8 +71,11 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             setDate(initialDate);
             setEffort(initialEffort);
             setCategory(initialCategory || 'PERSONAL');
+            setIsHabit(initialIsHabit);
+            setHabitDaysOfWeek(initialHabitDaysOfWeek);
         }
-    }, [visible, initialTitle, initialDescription, initialDate, initialEffort, initialCategory]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [visible]);
 
     const handleCycleCategory = () => {
         const currentCategory = category || 'PERSONAL';
@@ -75,7 +86,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
     const handleSave = () => {
         if (!taskTitle.trim()) return;
-        onSave(taskTitle, date, description, effort, category);
+        onSave(taskTitle, date, description, effort, category, undefined, isHabit, habitDaysOfWeek);
         setTaskTitle('');
         setDescription('');
         setEffort(1);
@@ -85,6 +96,18 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     const handleDateSelect = (selectedDate: Date) => {
         setDate(selectedDate);
         setShowDatePicker(false);
+    };
+
+    const toggleDay = (dayIndex: number) => {
+        setHabitDaysOfWeek(prev => {
+            if (prev.includes(dayIndex)) {
+                // Prevent removing all days
+                if (prev.length === 1) return prev;
+                return prev.filter(d => d !== dayIndex);
+            } else {
+                return [...prev, dayIndex].sort();
+            }
+        });
     };
 
     const categoryColor = getCategoryColor(category || 'PERSONAL', colors.categories);
@@ -145,18 +168,6 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                         </TouchableOpacity>
                     </View>
 
-                    <View style={styles.dateContainer}>
-                        <Typography variant="caption" color={colors.textSecondary} style={styles.label}>
-                            DUE DATE
-                        </Typography>
-                        <Button
-                            title={date.toLocaleDateString()}
-                            variant="secondary"
-                            onPress={() => setShowDatePicker(true)}
-                            style={styles.dateButton}
-                        />
-                    </View>
-
                     <View style={styles.effortContainer}>
                         <Typography variant="caption" color={colors.textSecondary} style={styles.label}>
                             EFFORT LEVEL
@@ -168,6 +179,39 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                             max={5}
                             step={1}
                         />
+                    </View>
+
+                    <View style={styles.habitContainer}>
+                        <View style={styles.habitRow}>
+                            <Typography variant="caption" color={colors.textSecondary} style={styles.label}>
+                                REPEATING HABIT
+                            </Typography>
+                            <TouchableOpacity
+                                style={[styles.switch, isHabit && { backgroundColor: colors.primary }]}
+                                onPress={() => setIsHabit(!isHabit)}
+                            >
+                                <View style={[styles.switchThumb, isHabit && styles.switchThumbActive]} />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        {isHabit && (
+                            <View style={styles.daysContainer}>
+                                {DAY_NAMES.map((day, index) => {
+                                    const isSelected = habitDaysOfWeek.includes(index);
+                                    return (
+                                        <TouchableOpacity
+                                            key={index}
+                                            style={[styles.dayCircle, isSelected && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                                            onPress={() => toggleDay(index)}
+                                        >
+                                            <Typography variant="caption" color={isSelected ? colors.background : colors.textSecondary} weight="bold">
+                                                {day}
+                                            </Typography>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        )}
                     </View>
 
                     <View style={styles.actions}>
@@ -255,7 +299,46 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     effortContainer: {
-        marginBottom: SPACING.xl,
+        marginBottom: SPACING.l,
         paddingHorizontal: SPACING.xs,
+    },
+    habitContainer: {
+        marginBottom: SPACING.xl,
+    },
+    habitRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    switch: {
+        width: 44,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: '#444', // Darker generic background
+        padding: 2,
+    },
+    switchThumb: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: '#fff',
+        transform: [{ translateX: 0 }],
+    },
+    switchThumbActive: {
+        transform: [{ translateX: 20 }],
+    },
+    daysContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: SPACING.m,
+    },
+    dayCircle: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: '#444',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });
