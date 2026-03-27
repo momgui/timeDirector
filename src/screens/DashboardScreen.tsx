@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, FlatList, ScrollView, LayoutAnimation, Platform, UIManager, TouchableOpacity, Alert, Dimensions, Animated } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { PlatformDatePicker } from '../components/PlatformPickers';
 import Svg, { Path, Rect, Line } from 'react-native-svg';
 import { getCurrentUser } from '../services/auth';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -34,7 +34,7 @@ import 'react-native-get-random-values';
 import { SchedulerService } from '../services/scheduler';
 import { listEvents, listCalendars } from '../services/googleCalendar';
 import { listTaskLists, listTasks } from '../services/googleTasks';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { getGoogleTokens } from '../services/auth';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.8;
@@ -139,7 +139,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             const currentUser = await getCurrentUser();
 
             if (currentUser) {
-                const tokens = await GoogleSignin.getTokens();
+                const tokens = await getGoogleTokens();
+                if (!tokens) throw new Error('No tokens available');
                 const accessToken = tokens.accessToken;
 
                 // 1. Calendar
@@ -1029,10 +1030,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             )}
 
             {showDatePicker && (
-                <DateTimePicker
+                <PlatformDatePicker
                     value={rescheduleDate}
-                    mode="date"
-                    display="default"
                     onChange={onDateChange}
                     minimumDate={new Date()}
                     themeVariant={isDark ? "dark" : "light"}

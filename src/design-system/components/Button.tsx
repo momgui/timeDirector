@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, ActivityIndicator, ViewStyle, Pressable, Animated } from 'react-native';
+import { StyleSheet, ActivityIndicator, ViewStyle, Pressable, Animated, StyleProp } from 'react-native';
 import { Typography } from './Typography';
 import { RADIUS, SPACING } from '../tokens';
 import { useTheme } from '../../theme';
@@ -13,7 +13,7 @@ interface ButtonProps {
     disabled?: boolean;
     leftIcon?: React.ReactNode;
     rightIcon?: React.ReactNode;
-    style?: ViewStyle;
+    style?: StyleProp<ViewStyle>;
     fullWidth?: boolean;
 }
 
@@ -112,7 +112,7 @@ export const Button: React.FC<ButtonProps> = ({
         opacity: disabled ? 0.6 : 1,
         width: fullWidth ? '100%' : undefined,
         ...getBorder(),
-        ...style,
+        ...StyleSheet.flatten(style),
     };
 
     return (

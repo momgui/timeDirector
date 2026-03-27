@@ -13,6 +13,8 @@ import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { RootStackParamList } from '../types';
 
+import SignUpScreen from '../screens/SignUpScreen';
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 import { View, ActivityIndicator } from 'react-native';
@@ -63,6 +65,7 @@ const AppNavigator = () => {
         <NavigationContainer>
             <Stack.Navigator initialRouteName={initialRoute}>
                 <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+                <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false }} />
                 <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
                 <Stack.Screen name="GoalInput" component={GoalInputScreen} options={{ headerShown: false }} />
                 <Stack.Screen name="GoalDetails" component={GoalDetailsScreen} options={{ headerShown: false }} />

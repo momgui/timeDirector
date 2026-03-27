@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TextInput, View, StyleSheet, TextInputProps, Animated } from 'react-native';
+import { TextInput, View, StyleSheet, TextInputProps, Animated, Platform } from 'react-native';
 import { Typography } from './Typography';
 import { RADIUS, SPACING, FONTS } from '../tokens';
 import { useTheme } from '../../theme';
@@ -110,6 +110,12 @@ const styles = StyleSheet.create({
         fontFamily: FONTS.family.body,
         fontSize: FONTS.sizes.body,
         height: '100%',
+        ...Platform.select({
+            web: {
+                outlineStyle: 'none',
+            } as any,
+            default: {},
+        }),
     },
     leftIcon: {
         marginRight: SPACING.s,

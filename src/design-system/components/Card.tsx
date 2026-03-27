@@ -19,6 +19,8 @@ export const Card: React.FC<CardProps> = ({
 }) => {
     const { colors, isDark } = useTheme();
 
+    const supportsBlur = Platform.OS === 'ios' || Platform.OS === 'web';
+
     const getBackgroundColor = () => {
         switch (variant) {
             case 'solid':
@@ -26,8 +28,7 @@ export const Card: React.FC<CardProps> = ({
             case 'outlined':
                 return 'transparent';
             case 'glass':
-                // Adjust glass opacity based on mode if needed, usually dark glass looks best
-                return Platform.OS === 'ios' ? 'transparent' : (isDark ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)');
+                return supportsBlur ? 'transparent' : (isDark ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)');
             default:
                 return colors.surface;
         }
@@ -40,7 +41,6 @@ export const Card: React.FC<CardProps> = ({
                 borderColor: colors.border,
             };
         }
-        // Subtle border for solid/glass cards for definition
         return {
             borderWidth: 1,
             borderColor: colors.border,
@@ -53,11 +53,11 @@ export const Card: React.FC<CardProps> = ({
         backgroundColor: getBackgroundColor(),
         ...getBorder(),
         ...SHADOWS.subtle,
-        shadowColor: colors.shadow, // Dynamic shadow color
+        shadowColor: colors.shadow,
         overflow: 'hidden',
     };
 
-    if (variant === 'glass' && Platform.OS === 'ios') {
+    if (variant === 'glass' && supportsBlur) {
         return (
             <View style={[baseStyle, { backgroundColor: 'transparent', borderWidth: 0 }, style]}>
                 <BlurView intensity={30} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />

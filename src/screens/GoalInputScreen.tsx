@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
         maxHeight: 300,
         textAlignVertical: 'top',
         fontSize: 32,
-        fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+        fontFamily: 'Outfit',
         fontWeight: '300',
         // color: COLORS.textPrimary, // Handled inline
         textAlign: 'center',

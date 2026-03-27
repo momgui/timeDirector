@@ -48,6 +48,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         googleIosClientId: process.env.GOOGLE_IOS_CLIENT_ID,
         googleAndroidClientId: process.env.GOOGLE_ANDROID_CLIENT_ID,
         geminiApiKey: process.env.GEMINI_API_KEY,
+        supabaseUrl: "https://xpglbyxjszpusclmpwut.supabase.co",
+        supabaseAnonKey: "***REMOVED***",
         eas: {
             projectId: '9d09df27-ed0f-4c40-8a21-aada22f6c961',
         },

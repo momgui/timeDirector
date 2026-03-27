@@ -65,6 +65,7 @@ export type WeeklySchedule = Record<string, DaySchedule>;
 
 export type RootStackParamList = {
     Login: undefined;
+    SignUp: undefined;
     Dashboard: undefined;
     GoalInput: { goalId?: string };
     GoalDetails: { goalId: string };

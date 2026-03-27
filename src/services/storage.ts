@@ -1,15 +1,223 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Goal, Step, WeeklySchedule } from '../types';
+import { supabase } from './supabase';
 
 const GOALS_KEY = 'goals';
 const STEPS_KEY = 'steps';
 const AVAILABILITY_KEY = 'availability';
+
+/**
+ * Helper to sync a single goal to Supabase
+ */
+const syncGoalToSupabase = async (goal: Goal) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    try {
+        const { error } = await supabase
+            .from('goals')
+            .upsert({
+                id: goal.id,
+                user_id: session.user.id,
+                title: goal.title,
+                deadline: goal.deadline.toISOString(),
+                created_at: goal.createdAt.toISOString(),
+                is_completed: goal.isCompleted,
+                category: goal.category,
+                context: goal.context,
+                resources: goal.resources,
+            });
+
+        if (error) console.error('Supabase Goal Sync Error:', error);
+    } catch (err) {
+        console.error('Supabase Goal Sync Exception:', err);
+    }
+};
+
+/**
+ * Helper to sync steps to Supabase
+ */
+const syncStepsToSupabase = async (steps: Step[]) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    try {
+        const payload = steps.map(step => ({
+            id: step.id,
+            user_id: session.user.id,
+            goal_id: step.goalId,
+            title: step.title,
+            description: step.description,
+            date: step.date?.toISOString(),
+            scheduled_date: step.scheduledDate?.toISOString(),
+            sequence_order: step.sequenceOrder,
+            is_completed: step.isCompleted,
+            effort: step.effort,
+            estimated_minutes: step.estimatedMinutes,
+            category: step.category,
+            is_milestone: step.isMilestone,
+            parent_id: step.parentId,
+            is_habit: step.isHabit,
+            habit_days_of_week: step.habitDaysOfWeek,
+            current_streak: step.currentStreak,
+            last_completed_date: step.lastCompletedDate?.toISOString(),
+        }));
+
+        const { error } = await supabase
+            .from('steps')
+            .upsert(payload);
+
+        if (error) console.error('Supabase Steps Sync Error:', error);
+    } catch (err) {
+        console.error('Supabase Steps Sync Exception:', err);
+    }
+};
+
+/**
+ * Sync availability to Supabase
+ */
+const syncAvailabilityToSupabase = async (schedule: WeeklySchedule) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    try {
+        const { error } = await supabase
+            .from('profiles')
+            .upsert({
+                id: session.user.id,
+                availability: schedule,
+                updated_at: new Date().toISOString(),
+            });
+
+        if (error) console.error('Supabase Availability Sync Error:', error);
+    } catch (err) {
+        console.error('Supabase Availability Sync Exception:', err);
+    }
+};
+
+/**
+ * Pull all data from Supabase and update local storage
+ */
+export const pullFromSupabase = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    try {
+        // 1. Pull Goals
+        const { data: goals, error: goalsError } = await supabase
+            .from('goals')
+            .select('*')
+            .eq('user_id', session.user.id);
+        
+        if (goals && !goalsError) {
+            const formattedGoals: Goal[] = goals.map((g: any) => ({
+                id: g.id,
+                title: g.title,
+                deadline: new Date(g.deadline),
+                createdAt: new Date(g.created_at),
+                isCompleted: g.is_completed,
+                category: g.category,
+                context: g.context,
+                resources: g.resources,
+            }));
+            await AsyncStorage.setItem(GOALS_KEY, JSON.stringify(formattedGoals));
+        }
+
+        // 2. Pull Steps
+        const { data: steps, error: stepsError } = await supabase
+            .from('steps')
+            .select('*')
+            .eq('user_id', session.user.id);
+
+        if (steps && !stepsError) {
+            const formattedSteps: Step[] = steps.map((s: any) => ({
+                id: s.id,
+                goalId: s.goal_id,
+                title: s.title,
+                description: s.description,
+                date: s.date ? new Date(s.date) : undefined,
+                scheduledDate: s.scheduled_date ? new Date(s.scheduled_date) : undefined,
+                sequenceOrder: s.sequence_order,
+                isCompleted: s.is_completed,
+                effort: s.effort,
+                estimatedMinutes: s.estimated_minutes,
+                category: s.category,
+                isMilestone: s.is_milestone,
+                parentId: s.parent_id,
+                isHabit: s.is_habit,
+                habitDaysOfWeek: s.habit_days_of_week,
+                currentStreak: s.current_streak,
+                lastCompletedDate: s.last_completed_date ? new Date(s.last_completed_date) : undefined,
+            }));
+            await AsyncStorage.setItem(STEPS_KEY, JSON.stringify(formattedSteps));
+        }
+
+        // 3. Pull Availability/Profile
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('availability')
+            .eq('id', session.user.id)
+            .single();
+
+        if (profile?.availability && !profileError) {
+            await AsyncStorage.setItem(AVAILABILITY_KEY, JSON.stringify(profile.availability));
+        }
+
+    } catch (err) {
+        console.error('Supabase Pull Exception:', err);
+    }
+};
+
+/**
+ * Clear all local data from AsyncStorage
+ */
+export const clearLocalData = async () => {
+    try {
+        await AsyncStorage.removeItem(GOALS_KEY);
+        await AsyncStorage.removeItem(STEPS_KEY);
+        await AsyncStorage.removeItem(AVAILABILITY_KEY);
+        await AsyncStorage.removeItem('HAS_COMPLETED_ONBOARDING');
+        await AsyncStorage.removeItem('USER_PROFILE');
+        await AsyncStorage.removeItem('USER_MAIN_GOAL');
+    } catch (error) {
+        console.error('Error clearing local data:', error);
+    }
+};
+
+/**
+ * Take current local data and push everything to Supabase (Migration)
+ */
+export const pushLocalDataToSupabase = async () => {
+    try {
+        const goals = await getGoals();
+        const steps = await getSteps();
+        const availability = await getAvailability();
+
+        // Push Goals one by one or in batch if possible (our helper does it)
+        for (const goal of goals) {
+            await syncGoalToSupabase(goal);
+        }
+
+        // Push Steps in batch
+        if (steps.length > 0) {
+            await syncStepsToSupabase(steps);
+        }
+
+        // Push Availability
+        await syncAvailabilityToSupabase(availability);
+    } catch (error) {
+        console.error('Error pushing local data to Supabase:', error);
+    }
+};
 
 export const saveGoal = async (goal: Goal) => {
     try {
         const storedGoals = await getGoals();
         const updatedGoals = [...storedGoals, goal];
         await AsyncStorage.setItem(GOALS_KEY, JSON.stringify(updatedGoals));
+        
+        // Sync to cloud
+        await syncGoalToSupabase(goal);
     } catch (error) {
         console.error('Error saving goal:', error);
     }
@@ -18,7 +226,19 @@ export const saveGoal = async (goal: Goal) => {
 export const getGoals = async (): Promise<Goal[]> => {
     try {
         const jsonValue = await AsyncStorage.getItem(GOALS_KEY);
-        return jsonValue != null ? JSON.parse(jsonValue) : [];
+        if (jsonValue != null) {
+            const parsed = JSON.parse(jsonValue);
+            return parsed.map((g: any) => ({
+                ...g,
+                deadline: new Date(g.deadline),
+                createdAt: new Date(g.createdAt),
+                resources: g.resources?.map((r: any) => ({
+                    ...r,
+                    createdAt: new Date(r.createdAt)
+                }))
+            }));
+        }
+        return [];
     } catch (error) {
         console.error('Error getting goals:', error);
         return [];
@@ -30,6 +250,9 @@ export const saveSteps = async (newSteps: Step[]) => {
         const storedSteps = await getSteps();
         const updatedSteps = [...storedSteps, ...newSteps];
         await AsyncStorage.setItem(STEPS_KEY, JSON.stringify(updatedSteps));
+        
+        // Sync to cloud
+        await syncStepsToSupabase(newSteps);
     } catch (error) {
         console.error('Error saving steps:', error);
     }
@@ -38,7 +261,16 @@ export const saveSteps = async (newSteps: Step[]) => {
 export const getSteps = async (): Promise<Step[]> => {
     try {
         const jsonValue = await AsyncStorage.getItem(STEPS_KEY);
-        return jsonValue != null ? JSON.parse(jsonValue) : [];
+        if (jsonValue != null) {
+            const parsed = JSON.parse(jsonValue);
+            return parsed.map((s: any) => ({
+                ...s,
+                date: s.date ? new Date(s.date) : undefined,
+                scheduledDate: s.scheduledDate ? new Date(s.scheduledDate) : undefined,
+                lastCompletedDate: s.lastCompletedDate ? new Date(s.lastCompletedDate) : undefined
+            }));
+        }
+        return [];
     } catch (error) {
         console.error('Error getting steps:', error);
         return [];
@@ -52,6 +284,9 @@ export const updateStep = async (updatedStep: Step) => {
             step.id === updatedStep.id ? updatedStep : step
         );
         await AsyncStorage.setItem(STEPS_KEY, JSON.stringify(newSteps));
+        
+        // Sync to cloud
+        await syncStepsToSupabase([updatedStep]);
     } catch (error) {
         console.error('Error updating step:', error);
     }
@@ -67,6 +302,10 @@ export const deleteGoal = async (goalId: string) => {
         const storedSteps = await getSteps();
         const updatedSteps = storedSteps.filter(s => s.goalId !== goalId);
         await AsyncStorage.setItem(STEPS_KEY, JSON.stringify(updatedSteps));
+
+        // Sync to cloud
+        await supabase.from('goals').delete().eq('id', goalId);
+        await supabase.from('steps').delete().eq('goal_id', goalId);
     } catch (error) {
         console.error('Error deleting goal:', error);
     }
@@ -79,6 +318,9 @@ export const updateGoal = async (updatedGoal: Goal) => {
             goal.id === updatedGoal.id ? updatedGoal : goal
         );
         await AsyncStorage.setItem(GOALS_KEY, JSON.stringify(newGoals));
+        
+        // Sync to cloud
+        await syncGoalToSupabase(updatedGoal);
     } catch (error) {
         console.error('Error updating goal:', error);
     }
@@ -136,6 +378,9 @@ export const deleteResourceFromGoal = async (goalId: string, resourceId: string)
 export const saveAvailability = async (schedule: WeeklySchedule) => {
     try {
         await AsyncStorage.setItem(AVAILABILITY_KEY, JSON.stringify(schedule));
+        
+        // Sync to cloud
+        await syncAvailabilityToSupabase(schedule);
     } catch (error) {
         console.error('Error saving availability:', error);
     }

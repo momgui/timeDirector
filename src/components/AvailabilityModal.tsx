@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { PlatformTimePicker } from './PlatformPickers';
 import { Card } from '../design-system/components/Card';
 import { Typography } from '../design-system/components/Typography';
 import { Button } from '../design-system/components/Button';
@@ -163,7 +163,7 @@ export const AvailabilityModal: React.FC<AvailabilityModalProps> = ({
     };
 
     const onTimeChange = (event: any, selectedDate?: Date) => {
-        if (Platform.OS === 'android') {
+        if (Platform.OS === 'android' || Platform.OS === 'web') {
             setShowTimePicker(null);
         }
 
@@ -319,9 +319,8 @@ export const AvailabilityModal: React.FC<AvailabilityModalProps> = ({
                                 <View style={styles.pickerHeader}>
                                     <Button title="Done" onPress={() => setShowTimePicker(null)} size="s" />
                                 </View>
-                                <DateTimePicker
+                                <PlatformTimePicker
                                     value={tempDate}
-                                    mode="time"
                                     display="spinner"
                                     onChange={onTimeChange}
                                     textColor={COLORS.textPrimary}
@@ -331,10 +330,8 @@ export const AvailabilityModal: React.FC<AvailabilityModalProps> = ({
                         </View>
                     </Modal>
                 ) : (
-                    <DateTimePicker
+                    <PlatformTimePicker
                         value={tempDate}
-                        mode="time"
-                        display="default"
                         onChange={onTimeChange}
                     />
                 )

@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Alert, Switch, ScrollView } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../types';
 import { Layout } from '../design-system/components/Layout';
 import { Typography } from '../design-system/components/Typography';
 import { Button } from '../design-system/components/Button';
 import { SPACING } from '../design-system/tokens';
 import { useTheme } from '../theme';
-import { signOut, deleteAccount } from '../services/auth';
+import { signOut, deleteAccount, getCurrentUser, signInWithGoogle } from '../services/auth';
 import Svg, { Path } from 'react-native-svg';
 
 type SettingsScreenProps = {
@@ -16,6 +17,21 @@ type SettingsScreenProps = {
 
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
     const { theme, setTheme, colors } = useTheme();
+    const [user, setUser] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+
+    useFocusEffect(
+        useCallback(() => {
+            const fetchUser = async () => {
+                const currentUser = await getCurrentUser();
+                setUser(currentUser);
+                setLoading(false);
+            };
+            fetchUser();
+        }, [])
+    );
+
+    const isGuest = user?.user?.id === 'guest';
 
     const handleSignOut = async () => {
         await signOut();
@@ -100,18 +116,62 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
 
                 <View style={styles.section}>
                     <Typography variant="h3" style={[styles.sectionTitle, { color: colors.textSecondary }]}>Account</Typography>
-                    <Button
-                        title="Sign Out"
-                        onPress={handleSignOut}
-                        variant="secondary"
-                        style={styles.logoutButton}
-                    />
-                    <Button
-                        title="Delete Account"
-                        onPress={handleDeleteAccount}
-                        variant="ghost"
-                        style={{ ...styles.logoutButton, marginTop: SPACING.xl }}
-                    />
+                    
+                    {loading ? (
+                        <Typography variant="body" color={colors.textSecondary}>Loading...</Typography>
+                    ) : isGuest ? (
+                        <View style={[styles.authCard, { backgroundColor: colors.surface }]}>
+                            <Typography variant="body" style={{ marginBottom: SPACING.m }}>
+                                You are using Eôs in guest mode. Sign in to sync your data across devices.
+                            </Typography>
+                            <Button
+                                title="Sign In to Eôs"
+                                onPress={() => navigation.navigate('Login')}
+                                variant="primary"
+                                fullWidth
+                            />
+                        </View>
+                    ) : (
+                        <View style={[styles.authCard, { backgroundColor: colors.surface }]}>
+                            <Typography variant="caption" color={colors.textSecondary} style={{ marginBottom: SPACING.xs }}>
+                                Signed in as
+                            </Typography>
+                            <Typography variant="body" weight="bold" style={{ marginBottom: SPACING.l }}>
+                                {user?.user?.email}
+                            </Typography>
+                            <Button
+                                title="Sign Out"
+                                onPress={handleSignOut}
+                                variant="secondary"
+                                fullWidth
+                            />
+                            {user?.user?.app_metadata?.providers?.indexOf('google') === -1 && (
+                                <Button
+                                    title="Connect Google Account"
+                                    onPress={async () => {
+                                        const { error } = await signInWithGoogle();
+                                        if (error) Alert.alert('Error', error.message);
+                                        else {
+                                            const currentUser = await getCurrentUser();
+                                            setUser(currentUser);
+                                        }
+                                    }}
+                                    variant="ghost"
+                                    fullWidth
+                                    style={{ marginTop: SPACING.m }}
+                                />
+                            )}
+                        </View>
+                    )}
+
+                    {!isGuest && !loading && (
+                        <Button
+                            title="Delete Account"
+                            onPress={handleDeleteAccount}
+                            variant="ghost"
+                            style={{ marginTop: SPACING.xl }}
+                        />
+                    )}
                 </View>
 
                 <View style={styles.section}>
@@ -159,6 +219,11 @@ const styles = StyleSheet.create({
     menuButton: {
         marginBottom: SPACING.s,
         justifyContent: 'flex-start',
+    },
+    authCard: {
+        padding: SPACING.l,
+        borderRadius: 12,
+        marginBottom: SPACING.m,
     },
     themeSelector: {
         flexDirection: 'row',

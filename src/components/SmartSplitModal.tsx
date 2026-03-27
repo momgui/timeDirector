@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Platform, KeyboardAvoidingView, ScrollView, Modal, TouchableOpacity } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { PlatformDatePicker } from './PlatformPickers';
 import { Step, SlotCategory } from '../types';
 import { splitMilestone } from '../services/ai';
 import { v4 as uuidv4 } from 'uuid';
@@ -184,10 +184,8 @@ export const SmartSplitModal: React.FC<SmartSplitModalProps> = ({
                         )}
 
                         {showDatePicker && (
-                            <DateTimePicker
+                            <PlatformDatePicker
                                 value={editingStep?.date || new Date()}
-                                mode="date"
-                                display="default"
                                 onChange={handleDateChange}
                                 minimumDate={new Date()}
                                 themeVariant="dark"
