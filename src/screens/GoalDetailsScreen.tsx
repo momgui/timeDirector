@@ -124,21 +124,15 @@ const GoalDetailsScreen = () => {
     };
 
     const handleDeleteGoal = async () => {
-        Alert.alert(
-            "Delete Goal",
-            "Are you sure you want to delete this goal and all tasks? This cannot be undone.",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        await deleteGoal(goalId);
-                        navigation.goBack();
-                    }
-                }
-            ]
-        );
+        setDeleteConfig({
+            title: "Delete Goal?",
+            message: "Are you sure you want to delete this goal and all tasks? This cannot be undone.",
+            onConfirm: async () => {
+                await deleteGoal(goalId);
+                navigation.goBack();
+            }
+        });
+        setDeleteModalVisible(true);
     };
 
     const handleSaveTask = async (title: string, date: Date, description?: string, effort: number = 1, category?: SlotCategory) => {
@@ -223,7 +217,7 @@ const GoalDetailsScreen = () => {
 
     const handleAddResource = async () => {
         if (!newResourceTitle || !newResourceUrl) {
-            Alert.alert("Error", "Please fill in all fields");
+            alert("Please fill in all fields");
             return;
         }
 
@@ -243,21 +237,15 @@ const GoalDetailsScreen = () => {
     };
 
     const handleDeleteResource = async (resourceId: string) => {
-        Alert.alert(
-            "Remove Resource",
-            "Are you sure?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Remove",
-                    style: "destructive",
-                    onPress: async () => {
-                        await deleteResourceFromGoal(goalId, resourceId);
-                        loadData();
-                    }
-                }
-            ]
-        );
+        setDeleteConfig({
+            title: "Remove Resource?",
+            message: "Are you sure you want to remove this resource?",
+            onConfirm: async () => {
+                await deleteResourceFromGoal(goalId, resourceId);
+                loadData();
+            }
+        });
+        setDeleteModalVisible(true);
     };
 
     const openResource = async (url: string) => {

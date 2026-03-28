@@ -11,6 +11,7 @@ import { Button } from '../design-system/components/Button';
 import { Card } from '../design-system/components/Card';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { syncProfileToSupabase } from '../services/storage';
 
 const { width } = Dimensions.get('window');
 
@@ -79,6 +80,12 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }
 
             // Mark onboarding as complete
             await AsyncStorage.setItem('HAS_COMPLETED_ONBOARDING', 'true');
+
+            // Sync to cloud
+            await syncProfileToSupabase({
+                profile: profile || 'unknown',
+                mainGoal: goal
+            });
 
             // Navigate to Dashboard
             navigation.replace('Dashboard');

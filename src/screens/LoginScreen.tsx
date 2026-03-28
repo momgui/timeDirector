@@ -35,9 +35,9 @@ export default function LoginScreen() {
             if (signInError) {
                 setError(signInError.message);
             } else if (data?.session) {
-                await pushLocalDataToSupabase();
                 await saveLoginState();
                 await pullFromSupabase();
+                await pushLocalDataToSupabase();
                 await handlePostLogin();
             }
         } catch (error: any) {
@@ -53,10 +53,10 @@ export default function LoginScreen() {
             const { data, error: googleError } = await signInWithGoogle();
             if (googleError) {
                 setError(googleError.message);
-            } else if (data?.session) {
-                await pushLocalDataToSupabase();
+            } else if (data && 'session' in data && data.session) {
                 await saveLoginState();
                 await pullFromSupabase();
+                await pushLocalDataToSupabase();
                 await handlePostLogin();
             }
         } catch (error: any) {

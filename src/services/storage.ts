@@ -74,25 +74,34 @@ const syncStepsToSupabase = async (steps: Step[]) => {
 };
 
 /**
- * Sync availability to Supabase
+ * Sync availability and profile info to Supabase
  */
-const syncAvailabilityToSupabase = async (schedule: WeeklySchedule) => {
+export const syncProfileToSupabase = async (profileData?: { profile?: string; mainGoal?: string; availability?: WeeklySchedule }) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
     try {
+        const payload: any = {
+            id: session.user.id,
+            updated_at: new Date().toISOString(),
+        };
+
+        if (profileData?.availability) payload.availability = profileData.availability;
+        if (profileData?.profile) payload.profile_type = profileData.profile;
+        if (profileData?.mainGoal) payload.main_goal = profileData.mainGoal;
+
         const { error } = await supabase
             .from('profiles')
-            .upsert({
-                id: session.user.id,
-                availability: schedule,
-                updated_at: new Date().toISOString(),
-            });
+            .upsert(payload);
 
-        if (error) console.error('Supabase Availability Sync Error:', error);
+        if (error) console.error('Supabase Profile Sync Error:', error);
     } catch (err) {
-        console.error('Supabase Availability Sync Exception:', err);
+        console.error('Supabase Profile Sync Exception:', err);
     }
+};
+
+const syncAvailabilityToSupabase = async (schedule: WeeklySchedule) => {
+    await syncProfileToSupabase({ availability: schedule });
 };
 
 /**
@@ -155,12 +164,28 @@ export const pullFromSupabase = async () => {
         // 3. Pull Availability/Profile
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('availability')
+            .select('*')
             .eq('id', session.user.id)
             .single();
 
-        if (profile?.availability && !profileError) {
-            await AsyncStorage.setItem(AVAILABILITY_KEY, JSON.stringify(profile.availability));
+        if (profile && !profileError) {
+            if (profile.availability) {
+                await AsyncStorage.setItem(AVAILABILITY_KEY, JSON.stringify(profile.availability));
+            }
+            if (profile.profile_type) {
+                await AsyncStorage.setItem('USER_PROFILE', profile.profile_type);
+            }
+            if (profile.main_goal) {
+                await AsyncStorage.setItem('USER_MAIN_GOAL', profile.main_goal);
+            }
+            
+            // If they have a profile, they have onboarded
+            await AsyncStorage.setItem('HAS_COMPLETED_ONBOARDING', 'true');
+            console.log('[Storage] Onboarding state restored from Supabase');
+        } else if (goals && goals.length > 0) {
+            // Even if no profile, if they have goals, they must have onboarded
+            await AsyncStorage.setItem('HAS_COMPLETED_ONBOARDING', 'true');
+            console.log('[Storage] Onboarding state implied from existing goals');
         }
 
     } catch (err) {
@@ -293,21 +318,52 @@ export const updateStep = async (updatedStep: Step) => {
 };
 
 export const deleteGoal = async (goalId: string) => {
+    console.log(`[Storage] Deleting Goal: ${goalId}`);
     try {
+        // 1. Local Delete (immediate for UI responsiveness)
         const storedGoals = await getGoals();
         const updatedGoals = storedGoals.filter(g => g.id !== goalId);
         await AsyncStorage.setItem(GOALS_KEY, JSON.stringify(updatedGoals));
+        console.log(`[Storage] Local Goal Removed`);
 
-        // Cascade delete steps
         const storedSteps = await getSteps();
         const updatedSteps = storedSteps.filter(s => s.goalId !== goalId);
         await AsyncStorage.setItem(STEPS_KEY, JSON.stringify(updatedSteps));
+        console.log(`[Storage] Local Steps Removed`);
 
-        // Sync to cloud
-        await supabase.from('goals').delete().eq('id', goalId);
-        await supabase.from('steps').delete().eq('goal_id', goalId);
+        // 2. Sync to cloud
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            console.log(`[Supabase] Syncing deletion for goal ${goalId}...`);
+            
+            // Delete steps first
+            const { error: stepsError } = await supabase
+                .from('steps')
+                .delete()
+                .eq('goal_id', goalId);
+            
+            if (stepsError) {
+                console.error('[Supabase] Cascade Steps Delete Error:', stepsError);
+            } else {
+                console.log('[Supabase] Steps successfully deleted');
+            }
+
+            // Finally delete the goal
+            const { error: goalError } = await supabase
+                .from('goals')
+                .delete()
+                .eq('id', goalId);
+            
+            if (goalError) {
+                console.error('[Supabase] Goal Delete Error:', goalError);
+            } else {
+                console.log('[Supabase] Goal successfully deleted');
+            }
+        } else {
+            console.log('[Storage] No active session, skipping cloud sync');
+        }
     } catch (error) {
-        console.error('Error deleting goal:', error);
+        console.error('[Storage] Exception in deleteGoal:', error);
     }
 };
 
@@ -327,13 +383,28 @@ export const updateGoal = async (updatedGoal: Goal) => {
 };
 
 export const deleteStep = async (stepId: string) => {
+    console.log(`[Storage] Deleting Step: ${stepId}`);
     try {
         const storedSteps = await getSteps();
-        // Remove the step itself AND any steps that are children of this step (milestone)
+        // Remove the step itself AND any steps that are children of this step (milestones)
         const updatedSteps = storedSteps.filter(s => s.id !== stepId && s.parentId !== stepId);
         await AsyncStorage.setItem(STEPS_KEY, JSON.stringify(updatedSteps));
+        console.log(`[Storage] Local Step Removed`);
+
+        // Sync to cloud
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            // Delete sub-steps first if any (milestone children)
+            const { error: subStepsError } = await supabase.from('steps').delete().eq('parent_id', stepId);
+            if (subStepsError) console.error('[Supabase] Sub-Steps Delete Error:', subStepsError);
+
+            // Delete the step
+            const { error: stepError } = await supabase.from('steps').delete().eq('id', stepId);
+            if (stepError) console.error('[Supabase] Step Delete Error:', stepError);
+            else console.log('[Supabase] Step successfully deleted');
+        }
     } catch (error) {
-        console.error('Error deleting step:', error);
+        console.error('[Storage] Exception in deleteStep:', error);
     }
 };
 

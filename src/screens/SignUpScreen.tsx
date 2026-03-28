@@ -54,10 +54,10 @@ export default function SignUpScreen() {
             const { data, error: signUpError } = await signUp(email, password, name); // Destructure data
             if (signUpError) {
                 setError(signUpError.message);
-            } else if (data?.session) { // Check for data.session
-                await pushLocalDataToSupabase();
+            } else if (data?.session) {
                 await saveLoginState();
                 await pullFromSupabase();
+                await pushLocalDataToSupabase();
                 await handlePostLogin();
             } else {
                 // Handle cases where signUp is successful but no session is immediately available (e.g., email verification required)
