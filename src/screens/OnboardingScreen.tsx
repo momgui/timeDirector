@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { SPACING } from '../design-system/tokens';
 import { useTheme } from '../theme';
+import { useAuth } from '../context/AuthContext';
 import { Typography } from '../design-system/components/Typography';
 import { Button } from '../design-system/components/Button';
 import { Card } from '../design-system/components/Card';
@@ -52,6 +53,7 @@ const PROFILES = [
 
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }) => {
     const { colors, isDark } = useTheme();
+    const auth = useAuth();
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const [profile, setProfile] = useState<string | null>(null);
     const [goal, setGoal] = useState('');
@@ -87,8 +89,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }
                 mainGoal: goal
             });
 
-            // Navigate to Dashboard
-            navigation.replace('Dashboard');
+            // Trigger Refresh (Navigation will happen automatically)
+            await auth.refresh();
         } catch (error) {
             console.error('Error saving onboarding data:', error);
         }

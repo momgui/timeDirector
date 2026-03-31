@@ -11,12 +11,14 @@ import { Button } from '../design-system/components/Button';
 import { Input } from '../design-system/components/Input';
 import { useTheme } from '../theme';
 import { SPACING } from '../design-system/tokens';
+import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types';
 
 type SignUpScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SignUp'>;
 
 export default function SignUpScreen() {
     const { colors } = useTheme();
+    const auth = useAuth();
     const navigation = useNavigation<SignUpScreenNavigationProp>();
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
@@ -25,14 +27,6 @@ export default function SignUpScreen() {
     const [name, setName] = useState('');
     const [error, setError] = useState<string | null>(null);
 
-    const handlePostLogin = async () => {
-        const hasOnboarded = await AsyncStorage.getItem('HAS_COMPLETED_ONBOARDING');
-        if (hasOnboarded === 'true') {
-            navigation.replace('Dashboard');
-        } else {
-            navigation.replace('Onboarding');
-        }
-    };
 
     const handleSignUp = async () => {
         if (!email || !password || !name) {
@@ -58,11 +52,12 @@ export default function SignUpScreen() {
                 await saveLoginState();
                 await pullFromSupabase();
                 await pushLocalDataToSupabase();
-                await handlePostLogin();
+                // State-driven transition
+                await auth.refresh();
             } else {
                 // Handle cases where signUp is successful but no session is immediately available (e.g., email verification required)
                 alert('Account created! Please check your email for verification if required.');
-                navigation.replace('Login');
+                navigation.navigate('Login');
             }
         } catch (err: any) {
             setError(err.message || 'An error occurred during sign up');

@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import { FocusProvider } from './src/context/FocusContext';
+import { AuthProvider } from './src/context/AuthContext';
 import {
   useFonts,
   Outfit_300Light,
@@ -58,10 +59,12 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <ThemedStatusBar />
-        <FocusProvider>
-          <AppNavigator />
-        </FocusProvider>
+        <AuthProvider>
+          <ThemedStatusBar />
+          <FocusProvider>
+            <AppNavigator />
+          </FocusProvider>
+        </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

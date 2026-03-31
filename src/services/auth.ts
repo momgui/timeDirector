@@ -102,6 +102,24 @@ export const signInWithGoogle = async () => {
 };
 
 /**
+ * Link current account with Google
+ */
+export const linkWithGoogle = async () => {
+    try {
+        const { data, error } = await supabase.auth.linkIdentity({
+            provider: 'google',
+            options: {
+                redirectTo: Platform.OS === 'web' ? window.location.origin : undefined,
+            },
+        });
+        return { data, error };
+    } catch (error: any) {
+        console.error('Google Link Error:', error);
+        return { data: null, error };
+    }
+};
+
+/**
  * Legacy signIn kept for compatibility or specific native cases if needed
  */
 export const signIn = async () => {

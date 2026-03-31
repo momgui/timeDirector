@@ -11,12 +11,14 @@ import { Button } from '../design-system/components/Button';
 import { Input } from '../design-system/components/Input';
 import { useTheme } from '../theme';
 import { SPACING } from '../design-system/tokens';
+import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
 export default function LoginScreen() {
     const { colors } = useTheme();
+    const auth = useAuth();
     const navigation = useNavigation<LoginScreenNavigationProp>();
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
@@ -38,7 +40,8 @@ export default function LoginScreen() {
                 await saveLoginState();
                 await pullFromSupabase();
                 await pushLocalDataToSupabase();
-                await handlePostLogin();
+                // State-driven transition
+                await auth.refresh();
             }
         } catch (error: any) {
             setError(error.message || 'Sign in error');
@@ -52,28 +55,29 @@ export default function LoginScreen() {
         try {
             const { data, error: googleError } = await signInWithGoogle();
             if (googleError) {
-                setError(googleError.message);
+                const msg = googleError.message.toLowerCase();
+                if (msg.includes('already exists') || msg.includes('already registered')) {
+                    setError("Un compte existe déjà avec cet email. Connecte-toi d'abord avec ton email/mot de passe, puis lie ton compte Google dans les Paramètres.");
+                } else {
+                    setError(googleError.message);
+                }
             } else if (data && 'session' in data && data.session) {
                 await saveLoginState();
                 await pullFromSupabase();
                 await pushLocalDataToSupabase();
-                await handlePostLogin();
+                // State-driven transition
+                await auth.refresh();
             }
         } catch (error: any) {
             console.error('Sign in error:', error);
-            setError(error.message || 'Google sign in error');
+            const msg = error.message?.toLowerCase() || '';
+            if (msg.includes('already exists') || msg.includes('already registered')) {
+                setError("Un compte existe déjà avec cet email. Connecte-toi d'abord avec ton email/mot de passe, puis lie ton compte Google dans les Paramètres.");
+            } else {
+                setError(error.message || 'Google sign in error');
+            }
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handlePostLogin = async () => {
-        // Check if user has completed onboarding
-        const hasOnboarded = await AsyncStorage.getItem('HAS_COMPLETED_ONBOARDING');
-        if (hasOnboarded === 'true') {
-            navigation.replace('Dashboard');
-        } else {
-            navigation.replace('Onboarding');
         }
     };
 
@@ -83,7 +87,8 @@ export default function LoginScreen() {
             const userInfo = await signInAnonymously();
             if (userInfo) {
                 await saveLoginState();
-                await handlePostLogin();
+                // State-driven transition
+                await auth.refresh();
             }
         } catch (error) {
             console.error('Guest sign in error:', error);
@@ -137,9 +142,9 @@ export default function LoginScreen() {
                         loading={loading}
                         fullWidth
                     />
-                    
+
                     <View style={{ height: SPACING.m }} />
-                    
+
                     <Button
                         title="Don't have an account? Sign Up"
                         onPress={() => navigation.navigate('SignUp')}

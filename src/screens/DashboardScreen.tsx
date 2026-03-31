@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { View, StyleSheet, FlatList, ScrollView, LayoutAnimation, Platform, UIManager, TouchableOpacity, Alert, Dimensions, Animated } from 'react-native';
 import { PlatformDatePicker } from '../components/PlatformPickers';
 import Svg, { Path, Rect, Line } from 'react-native-svg';
@@ -53,6 +54,7 @@ type EnergyMode = 'HIGH' | 'MEDIUM' | 'LOW';
 
 const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     const { colors, isDark } = useTheme();
+    const { user } = useAuth();
     const [goals, setGoals] = useState<Goal[]>([]);
     const [steps, setSteps] = useState<Step[]>([]);
     const [selectionMode, setSelectionMode] = useState(false);
@@ -207,6 +209,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         // Note: SchedulerService move tasks around. 
         // We want to keep fixed Google Events fixed.
         const distributedSteps = SchedulerService.distributeTasks(allSteps, loadedGoals, loadedSchedule);
+        if (false) {
+             Alert.alert("Debug Info", `Before Distribute: ${allSteps.length}\nAfter Distribute: ${distributedSteps.length}`);
+        }
 
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setGoals(loadedGoals);
@@ -285,6 +290,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             isCompleted: false,
             effort: 1, // Default effort
             category: 'PERSONAL', // Default category
+            type: 'task'
         }));
 
         await saveSteps(newSteps);
@@ -301,6 +307,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
             isCompleted: false,
             effort,
             category,
+            type: 'task'
         };
         await saveSteps([newStep]);
         loadData();
@@ -823,7 +830,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 <View>
                     <Animated.View style={{ transform: [{ scale: titleScale }, { translateX: titleTranslateX }] }}>
                         <Typography variant="h1" color={colors.textPrimary}>
-                            Hello, Creator
+                            Hello, {user?.name || 'Creator'}
                         </Typography>
                     </Animated.View>
 

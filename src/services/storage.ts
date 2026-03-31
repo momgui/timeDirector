@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Goal, Step, WeeklySchedule } from '../types';
 import { supabase } from './supabase';
+import { addToSyncQueue, processSyncQueue } from './syncManager';
+import NetInfo from '@react-native-community/netinfo';
 
 const GOALS_KEY = 'goals';
 const STEPS_KEY = 'steps';
@@ -10,94 +12,27 @@ const AVAILABILITY_KEY = 'availability';
  * Helper to sync a single goal to Supabase
  */
 const syncGoalToSupabase = async (goal: Goal) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    await addToSyncQueue('upsert_goal', goal);
+    await processSyncQueue();
 
-    try {
-        const { error } = await supabase
-            .from('goals')
-            .upsert({
-                id: goal.id,
-                user_id: session.user.id,
-                title: goal.title,
-                deadline: goal.deadline.toISOString(),
-                created_at: goal.createdAt.toISOString(),
-                is_completed: goal.isCompleted,
-                category: goal.category,
-                context: goal.context,
-                resources: goal.resources,
-            });
-
-        if (error) console.error('Supabase Goal Sync Error:', error);
-    } catch (err) {
-        console.error('Supabase Goal Sync Exception:', err);
-    }
 };
 
 /**
  * Helper to sync steps to Supabase
  */
 const syncStepsToSupabase = async (steps: Step[]) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    await addToSyncQueue('upsert_steps', steps);
+    await processSyncQueue();
 
-    try {
-        const payload = steps.map(step => ({
-            id: step.id,
-            user_id: session.user.id,
-            goal_id: step.goalId,
-            title: step.title,
-            description: step.description,
-            date: step.date?.toISOString(),
-            scheduled_date: step.scheduledDate?.toISOString(),
-            sequence_order: step.sequenceOrder,
-            is_completed: step.isCompleted,
-            effort: step.effort,
-            estimated_minutes: step.estimatedMinutes,
-            category: step.category,
-            is_milestone: step.isMilestone,
-            parent_id: step.parentId,
-            is_habit: step.isHabit,
-            habit_days_of_week: step.habitDaysOfWeek,
-            current_streak: step.currentStreak,
-            last_completed_date: step.lastCompletedDate?.toISOString(),
-        }));
-
-        const { error } = await supabase
-            .from('steps')
-            .upsert(payload);
-
-        if (error) console.error('Supabase Steps Sync Error:', error);
-    } catch (err) {
-        console.error('Supabase Steps Sync Exception:', err);
-    }
 };
 
 /**
  * Sync availability and profile info to Supabase
  */
 export const syncProfileToSupabase = async (profileData?: { profile?: string; mainGoal?: string; availability?: WeeklySchedule }) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    await addToSyncQueue('upsert_profile', profileData || {});
+    await processSyncQueue();
 
-    try {
-        const payload: any = {
-            id: session.user.id,
-            updated_at: new Date().toISOString(),
-        };
-
-        if (profileData?.availability) payload.availability = profileData.availability;
-        if (profileData?.profile) payload.profile_type = profileData.profile;
-        if (profileData?.mainGoal) payload.main_goal = profileData.mainGoal;
-
-        const { error } = await supabase
-            .from('profiles')
-            .upsert(payload);
-
-        if (error) console.error('Supabase Profile Sync Error:', error);
-    } catch (err) {
-        console.error('Supabase Profile Sync Exception:', err);
-    }
 };
 
 const syncAvailabilityToSupabase = async (schedule: WeeklySchedule) => {
@@ -108,6 +43,15 @@ const syncAvailabilityToSupabase = async (schedule: WeeklySchedule) => {
  * Pull all data from Supabase and update local storage
  */
 export const pullFromSupabase = async () => {
+    const state = await NetInfo.fetch();
+    if (!state.isConnected) {
+        console.log('[Storage] Offline, skipping pullFromSupabase');
+        return;
+    }
+
+    // Force sync queue before pulling to avoid overwriting recent offline changes
+    await processSyncQueue();
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
@@ -331,37 +275,9 @@ export const deleteGoal = async (goalId: string) => {
         await AsyncStorage.setItem(STEPS_KEY, JSON.stringify(updatedSteps));
         console.log(`[Storage] Local Steps Removed`);
 
-        // 2. Sync to cloud
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            console.log(`[Supabase] Syncing deletion for goal ${goalId}...`);
-            
-            // Delete steps first
-            const { error: stepsError } = await supabase
-                .from('steps')
-                .delete()
-                .eq('goal_id', goalId);
-            
-            if (stepsError) {
-                console.error('[Supabase] Cascade Steps Delete Error:', stepsError);
-            } else {
-                console.log('[Supabase] Steps successfully deleted');
-            }
-
-            // Finally delete the goal
-            const { error: goalError } = await supabase
-                .from('goals')
-                .delete()
-                .eq('id', goalId);
-            
-            if (goalError) {
-                console.error('[Supabase] Goal Delete Error:', goalError);
-            } else {
-                console.log('[Supabase] Goal successfully deleted');
-            }
-        } else {
-            console.log('[Storage] No active session, skipping cloud sync');
-        }
+        // 2. Sync to cloud via Queue
+        await addToSyncQueue('delete_goal', goalId);
+        await processSyncQueue();
     } catch (error) {
         console.error('[Storage] Exception in deleteGoal:', error);
     }
@@ -391,18 +307,9 @@ export const deleteStep = async (stepId: string) => {
         await AsyncStorage.setItem(STEPS_KEY, JSON.stringify(updatedSteps));
         console.log(`[Storage] Local Step Removed`);
 
-        // Sync to cloud
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            // Delete sub-steps first if any (milestone children)
-            const { error: subStepsError } = await supabase.from('steps').delete().eq('parent_id', stepId);
-            if (subStepsError) console.error('[Supabase] Sub-Steps Delete Error:', subStepsError);
-
-            // Delete the step
-            const { error: stepError } = await supabase.from('steps').delete().eq('id', stepId);
-            if (stepError) console.error('[Supabase] Step Delete Error:', stepError);
-            else console.log('[Supabase] Step successfully deleted');
-        }
+        // Sync to cloud via queue
+        await addToSyncQueue('delete_step', stepId);
+        await processSyncQueue();
     } catch (error) {
         console.error('[Storage] Exception in deleteStep:', error);
     }
