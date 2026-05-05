@@ -91,7 +91,13 @@ export const MilestoneDetailModal: React.FC<MilestoneDetailModalProps> = ({
 
     if (!milestone) return null;
 
-    const completedSubtasks = subtasks.filter(s => s.isCompleted).length;
+    const completedSubtasks = subtasks.reduce((acc, s) => {
+        if (s.isHabit && s.targetStreak) {
+            const completions = s.totalCompletions !== undefined ? s.totalCompletions : (s.currentStreak || 0);
+            return acc + Math.min(completions / s.targetStreak, 1);
+        }
+        return acc + (s.isCompleted ? 1 : 0);
+    }, 0);
     const progress = subtasks.length > 0 ? completedSubtasks / subtasks.length : 0;
 
     return (

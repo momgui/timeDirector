@@ -23,7 +23,7 @@ const getCategoryColor = (category: SlotCategory, categoriesColors: any) => {
 interface CreateTaskModalProps {
     visible: boolean;
     onClose: () => void;
-    onSave: (title: string, date: Date, description?: string, effort?: number, category?: SlotCategory, parentId?: string, isHabit?: boolean, habitDaysOfWeek?: number[]) => void;
+    onSave: (title: string, date: Date, description?: string, effort?: number, category?: SlotCategory, parentId?: string, isHabit?: boolean, habitDaysOfWeek?: number[], targetStreak?: number) => void;
     initialDate?: Date;
     initialCategory?: SlotCategory;
     initialTitle?: string;
@@ -31,6 +31,7 @@ interface CreateTaskModalProps {
     initialEffort?: number;
     initialIsHabit?: boolean;
     initialHabitDaysOfWeek?: number[];
+    initialTargetStreak?: number;
     title?: string;
     saveLabel?: string;
 }
@@ -48,6 +49,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     initialEffort = 1,
     initialIsHabit = false,
     initialHabitDaysOfWeek = [0, 1, 2, 3, 4, 5, 6],
+    initialTargetStreak = undefined,
     title = "New Task",
     saveLabel = "Create Task"
 }) => {
@@ -59,6 +61,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     const [category, setCategory] = useState<SlotCategory | undefined>(initialCategory);
     const [isHabit, setIsHabit] = useState(initialIsHabit);
     const [habitDaysOfWeek, setHabitDaysOfWeek] = useState<number[]>(initialHabitDaysOfWeek);
+    const [targetStreakStr, setTargetStreakStr] = useState<string>(initialTargetStreak ? String(initialTargetStreak) : '');
     const [showDatePicker, setShowDatePicker] = useState(false);
 
     const DAY_NAMES = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -73,6 +76,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             setCategory(initialCategory || 'PERSONAL');
             setIsHabit(initialIsHabit);
             setHabitDaysOfWeek(initialHabitDaysOfWeek);
+            setTargetStreakStr(initialTargetStreak ? String(initialTargetStreak) : '');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
@@ -86,7 +90,9 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
     const handleSave = () => {
         if (!taskTitle.trim()) return;
-        onSave(taskTitle, date, description, effort, category, undefined, isHabit, habitDaysOfWeek);
+        const targetStreakParsed = parseInt(targetStreakStr.trim());
+        const finalTargetStreak = !isNaN(targetStreakParsed) && targetStreakParsed > 0 ? targetStreakParsed : undefined;
+        onSave(taskTitle, date, description, effort, category, undefined, isHabit, habitDaysOfWeek, finalTargetStreak);
         setTaskTitle('');
         setDescription('');
         setEffort(1);
@@ -195,22 +201,31 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                         </View>
                         
                         {isHabit && (
-                            <View style={styles.daysContainer}>
-                                {DAY_NAMES.map((day, index) => {
-                                    const isSelected = habitDaysOfWeek.includes(index);
-                                    return (
-                                        <TouchableOpacity
-                                            key={index}
-                                            style={[styles.dayCircle, isSelected && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                                            onPress={() => toggleDay(index)}
-                                        >
-                                            <Typography variant="caption" color={isSelected ? colors.background : colors.textSecondary} weight="bold">
-                                                {day}
-                                            </Typography>
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </View>
+                            <>
+                                <View style={styles.daysContainer}>
+                                    {DAY_NAMES.map((day, index) => {
+                                        const isSelected = habitDaysOfWeek.includes(index);
+                                        return (
+                                            <TouchableOpacity
+                                                key={index}
+                                                style={[styles.dayCircle, isSelected && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                                                onPress={() => toggleDay(index)}
+                                            >
+                                                <Typography variant="caption" color={isSelected ? colors.background : colors.textSecondary} weight="bold">
+                                                    {day}
+                                                </Typography>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                                <Input
+                                    placeholder="Objectif (ex: 10 jours) - Optionnel"
+                                    value={targetStreakStr}
+                                    onChangeText={setTargetStreakStr}
+                                    keyboardType="numeric"
+                                    style={[styles.input, { marginTop: SPACING.l }]}
+                                />
+                            </>
                         )}
                     </View>
 

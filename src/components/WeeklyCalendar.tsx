@@ -91,8 +91,9 @@ export const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({ selectedDate, on
 
     const hasTasks = (date: Date) => {
         return steps.some(step => {
-            if (!step.date) return false;
-            const stepDate = new Date(step.date);
+            const stepDateStr = step.scheduledDate || step.date;
+            if (!stepDateStr) return false;
+            const stepDate = new Date(stepDateStr);
             return stepDate.getDate() === date.getDate() &&
                 stepDate.getMonth() === date.getMonth() &&
                 stepDate.getFullYear() === date.getFullYear();

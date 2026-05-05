@@ -130,6 +130,9 @@ export const processSyncQueue = async () => {
                             is_habit: step.isHabit,
                             habit_days_of_week: step.habitDaysOfWeek,
                             current_streak: step.currentStreak,
+                            target_streak: step.targetStreak,
+                            total_completions: step.totalCompletions,
+                            type: step.type,
                             last_completed_date: step.lastCompletedDate ? new Date(step.lastCompletedDate).toISOString() : null,
                         }));
                         const { error: stepsErr } = await supabase.from('steps').upsert(payload);

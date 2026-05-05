@@ -147,7 +147,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
 
                 // 1. Calendar
                 const calendarList = await listCalendars(accessToken);
-                const filteredCalendars = calendarList.filter(calendar => calendar.summary.toLowerCase() !== 'numéros de semaine');
+                const filteredCalendars = calendarList.filter(calendar => calendar.summary?.toLowerCase() !== 'numéros de semaine');
                 let allEvents: any[] = [];
 
                 // Fetch events for each calendar
@@ -229,7 +229,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         setCreationMenuVisible(true);
     };
 
-    const handleSaveTask = async (title: string, date: Date, description?: string, effort: number = 1, category?: SlotCategory, parentId?: string, isHabit?: boolean, habitDaysOfWeek?: number[]) => {
+    const handleSaveTask = async (title: string, date: Date, description?: string, effort: number = 1, category?: SlotCategory, parentId?: string, isHabit?: boolean, habitDaysOfWeek?: number[], targetStreak?: number) => {
         if (editingTask) {
             const updatedStep = {
                 ...editingTask,
@@ -239,7 +239,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 effort,
                 category: category || editingTask.category,
                 isHabit: isHabit !== undefined ? isHabit : editingTask.isHabit,
-                habitDaysOfWeek: habitDaysOfWeek !== undefined ? habitDaysOfWeek : editingTask.habitDaysOfWeek
+                habitDaysOfWeek: habitDaysOfWeek !== undefined ? habitDaysOfWeek : editingTask.habitDaysOfWeek,
+                targetStreak: targetStreak !== undefined ? targetStreak : editingTask.targetStreak
             };
             await updateStep(updatedStep);
         } else {
@@ -255,7 +256,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 type: 'task',
                 isHabit: isHabit,
                 habitDaysOfWeek: habitDaysOfWeek,
-                currentStreak: isHabit ? 0 : undefined
+                currentStreak: isHabit ? 0 : undefined,
+                targetStreak: isHabit ? targetStreak : undefined,
+                totalCompletions: isHabit ? 0 : undefined
             };
             await saveSteps([newStep]);
         }
@@ -357,10 +360,23 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     ...step,
                     isCompleted: false, // Keep it unchecked for the next cycle
                     currentStreak: (step.currentStreak || 0) + 1,
+                    totalCompletions: (step.totalCompletions || 0) + 1,
                     lastCompletedDate: today,
                     date: nextDate
                 };
                 await updateStep(updatedStep);
+                
+                // Auto-validate parent milestone if target streak is reached
+                if (updatedStep.parentId && updatedStep.targetStreak && updatedStep.totalCompletions && updatedStep.totalCompletions >= updatedStep.targetStreak) {
+                    const parent = steps.find(s => s.id === step.parentId);
+                    if (parent && parent.isMilestone && !parent.isCompleted) {
+                        const updatedParent = { ...parent, isCompleted: true };
+                        await updateStep(updatedParent);
+                        if (selectedMilestone?.id === parent.id) {
+                            setSelectedMilestone(updatedParent);
+                        }
+                    }
+                }
             } else {
                 // Regular task logic
                 const updatedStep = { ...step, isCompleted: isCompleting };
@@ -609,7 +625,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         const isEvent = item.type === 'event';
 
         const subtasks = steps.filter(s => s.parentId === item.id);
-        const completedSubtasks = subtasks.filter(s => s.isCompleted).length;
+        const completedSubtasks = subtasks.reduce((acc, s) => {
+            if (s.isHabit && s.targetStreak) {
+                const completions = s.totalCompletions !== undefined ? s.totalCompletions : (s.currentStreak || 0);
+                return acc + Math.min(completions / s.targetStreak, 1);
+            }
+            return acc + (s.isCompleted ? 1 : 0);
+        }, 0);
         const progress = subtasks.length > 0 ? completedSubtasks / subtasks.length : 0;
         const parentGoal = goals.find(g => g.id === item.goalId);
 
@@ -688,6 +710,23 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                                             }}>
                                                 <Typography variant="caption" color={colors.primary} weight="bold">
                                                     🔥 {item.currentStreak}
+                                                </Typography>
+                                            </View>
+                                        )}
+                                        {item.isHabit && item.targetStreak !== undefined && (
+                                            <View style={{
+                                                flexDirection: 'row',
+                                                alignItems: 'center',
+                                                backgroundColor: colors.surfaceHighlight,
+                                                paddingHorizontal: 6,
+                                                paddingVertical: 2,
+                                                borderRadius: RADIUS.s,
+                                                marginRight: SPACING.s,
+                                                borderWidth: 1,
+                                                borderColor: colors.border
+                                            }}>
+                                                <Typography variant="caption" color={colors.textSecondary} weight="bold">
+                                                    {item.totalCompletions || item.currentStreak || 0}/{item.targetStreak}
                                                 </Typography>
                                             </View>
                                         )}
@@ -1069,12 +1108,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     setTaskModalVisible(false);
                     setEditingTask(null);
                 }}
-                onSave={(title, date, description, effort, category) => handleSaveTask(title, date, description, effort, category, selectedMilestone?.id)}
+                onSave={(title, date, description, effort, category, parentId, isHabit, habitDaysOfWeek, targetStreak) => handleSaveTask(title, date, description, effort, category, selectedMilestone?.id || parentId, isHabit, habitDaysOfWeek, targetStreak)}
                 initialDate={editingTask?.date || selectedDate || new Date()}
                 initialTitle={editingTask?.title || ""}
                 initialDescription={editingTask?.description || ""}
                 initialEffort={editingTask?.effort || 1}
                 initialCategory={editingTask?.category}
+                initialIsHabit={editingTask?.isHabit}
+                initialHabitDaysOfWeek={editingTask?.habitDaysOfWeek}
+                initialTargetStreak={editingTask?.targetStreak}
                 title={editingTask ? "Edit Task" : "New Task"}
                 saveLabel={editingTask ? "Save Changes" : "Create Task"}
             />

@@ -23,6 +23,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ios: {
         supportsTablet: true,
         bundleIdentifier: 'com.momgui.timedirector',
+        usesNonExemptEncryption: false,
     },
     android: {
         adaptiveIcon: {
@@ -42,6 +43,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         './plugins/withAndroidSigning',
         'expo-web-browser',
         'expo-font',
+        'expo-apple-authentication',
     ],
     extra: {
         googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID,

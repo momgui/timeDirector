@@ -77,7 +77,11 @@ export const SchedulerService = {
                 const taskDate = new Date(task.date);
                 taskDate.setHours(0, 0, 0, 0);
                 
-                if (taskDate < startOfToday) {
+                // Add a 3-hour grace period for DST comparisons to prevent false negatives when timezone shifts back (-1h)
+                // which results in 23:00 of the previous day.
+                const isTaskInPast = (taskDate.getTime() + (3 * 60 * 60 * 1000)) < startOfToday.getTime();
+
+                if (isTaskInPast) {
                     // Task is in the past.
                     if (task.isHabit) {
                         // Fail state for habit: missed the deadline. Reset streak and move to today/next active day.
@@ -298,6 +302,38 @@ export const SchedulerService = {
                     scheduledDate: new Date(currentDate)
                 });
             });
+        });
+
+
+        // 5. Align Milestones with their earliest active subtasks
+        const milestoneIds = new Set(scheduledTasks.filter(t => t.isMilestone && !t.isCompleted).map(t => t.id));
+        
+        milestoneIds.forEach(mId => {
+            const milestoneIndex = scheduledTasks.findIndex(t => t.id === mId);
+            if (milestoneIndex === -1) return;
+            
+            const milestone = scheduledTasks[milestoneIndex];
+            
+            // Find all pending subtasks of this milestone
+            const subtasks = scheduledTasks.filter(t => t.parentId === mId && !t.isCompleted && t.scheduledDate);
+            
+            if (subtasks.length > 0) {
+                // Find the minimum scheduledDate among subtasks so the milestone acts as a cursor
+                let minDate = new Date(subtasks[0].scheduledDate!);
+                
+                subtasks.forEach(st => {
+                    const stDate = new Date(st.scheduledDate!);
+                    if (stDate < minDate) {
+                        minDate = stDate;
+                    }
+                });
+                
+                // Update milestone's scheduledDate
+                scheduledTasks[milestoneIndex] = {
+                    ...milestone,
+                    scheduledDate: minDate
+                };
+            }
         });
 
         return scheduledTasks;

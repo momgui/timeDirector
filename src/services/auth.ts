@@ -3,6 +3,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID } from '../config';
 import { supabase } from './supabase';
 import { clearLocalData } from './storage';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
+import * as QueryParams from 'expo-auth-session/build/QueryParams';
+import { makeRedirectUri } from 'expo-auth-session';
+
+WebBrowser.maybeCompleteAuthSession();
 
 // Conditionally import Google Sign-In only on native platforms
 let GoogleSignin: any = null;
@@ -116,6 +123,153 @@ export const linkWithGoogle = async () => {
     } catch (error: any) {
         console.error('Google Link Error:', error);
         return { data: null, error };
+    }
+};
+
+/**
+ * Unified Apple Sign-In for Supabase
+ */
+export const signInWithApple = async () => {
+    if (Platform.OS === 'ios') {
+        try {
+            const credential = await AppleAuthentication.signInAsync({
+                requestedScopes: [
+                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                ],
+            });
+
+            if (credential.identityToken) {
+                const { data, error } = await supabase.auth.signInWithIdToken({
+                    provider: 'apple',
+                    token: credential.identityToken,
+                });
+                return { data, error };
+            } else {
+                throw new Error('No identityToken.');
+            }
+        } catch (error: any) {
+            if (error.code === 'ERR_REQUEST_CANCELED') {
+                console.log('User cancelled Apple Sign In');
+            } else {
+                console.error('Apple Sign In Error:', error);
+            }
+            return { data: null, error };
+        }
+    } else {
+        // Fallback for Android and Web
+        try {
+            const redirectUrl = Platform.OS === 'web' ? window.location.origin : makeRedirectUri();
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: 'apple',
+                options: {
+                    redirectTo: redirectUrl,
+                    skipBrowserRedirect: Platform.OS !== 'web',
+                },
+            });
+            
+            if (error) throw error;
+
+            if (Platform.OS !== 'web' && data?.url) {
+                const res = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+                if (res.type === 'success') {
+                    const { url } = res;
+                    // Extract fragments from URL (Supabase returns tokens in fragment by default)
+                    // URL is something like eos://...#access_token=...&refresh_token=...
+                    const parsedUrl = new URL(url);
+                    const hash = parsedUrl.hash.substring(1);
+                    const queryParams = new URLSearchParams(hash);
+                    const access_token = queryParams.get('access_token');
+                    const refresh_token = queryParams.get('refresh_token');
+
+                    if (access_token && refresh_token) {
+                        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+                            access_token,
+                            refresh_token,
+                        });
+                        return { data: sessionData, error: sessionError };
+                    } else {
+                        throw new Error('Tokens not found in redirect URL');
+                    }
+                }
+                return { data: null, error: new Error('User cancelled auth session') };
+            }
+            
+            return { data, error };
+        } catch (error: any) {
+            console.error('Apple OAuth Error:', error);
+            return { data: null, error };
+        }
+    }
+};
+
+/**
+ * Link current account with Apple
+ */
+export const linkWithApple = async () => {
+    if (Platform.OS === 'ios') {
+        try {
+            const credential = await AppleAuthentication.signInAsync({
+                requestedScopes: [
+                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                ],
+            });
+
+            if (credential.identityToken) {
+                const { data, error } = await supabase.auth.linkIdentity({
+                    provider: 'apple',
+                    token: credential.identityToken,
+                });
+                return { data, error };
+            } else {
+                throw new Error('No identityToken.');
+            }
+        } catch (error: any) {
+            console.error('Apple Link Error:', error);
+            return { data: null, error };
+        }
+    } else {
+        // Fallback for Android and Web
+        try {
+            const redirectUrl = Platform.OS === 'web' ? window.location.origin : makeRedirectUri();
+            const { data, error } = await supabase.auth.linkIdentity({
+                provider: 'apple',
+                options: {
+                    redirectTo: redirectUrl,
+                    skipBrowserRedirect: Platform.OS !== 'web',
+                },
+            });
+            
+            if (error) throw error;
+
+            if (Platform.OS !== 'web' && data?.url) {
+                const res = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+                if (res.type === 'success') {
+                    const { url } = res;
+                    const parsedUrl = new URL(url);
+                    const hash = parsedUrl.hash.substring(1);
+                    const queryParams = new URLSearchParams(hash);
+                    const access_token = queryParams.get('access_token');
+                    const refresh_token = queryParams.get('refresh_token');
+
+                    if (access_token && refresh_token) {
+                        // User is already logged in, so setting session effectively refreshes it or confirms link
+                        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+                            access_token,
+                            refresh_token,
+                        });
+                        return { data: sessionData, error: sessionError };
+                    }
+                }
+                return { data: null, error: new Error('User cancelled auth session') };
+            }
+            
+            return { data, error };
+        } catch (error: any) {
+            console.error('Apple Link OAuth Error:', error);
+            return { data: null, error };
+        }
     }
 };
 
@@ -276,12 +430,35 @@ export const getCurrentUser = async () => {
     return null;
 };
 
+// Helper to check if a native Google session is active
+export const checkNativeGoogleSignIn = async (): Promise<boolean> => {
+    if (Platform.OS === 'web' || !GoogleSignin) {
+        return false;
+    }
+    try {
+        const currentUser = await GoogleSignin.getCurrentUser();
+        return !!currentUser;
+    } catch {
+        return false;
+    }
+};
+
 // Helper to get Google tokens (only available on native)
 export const getGoogleTokens = async () => {
     if (Platform.OS === 'web' || !GoogleSignin) {
         return null;
     }
     try {
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        
+        // Restore session silently to ensure getTokens works after app restart
+        try {
+            await GoogleSignin.signInSilently();
+        } catch (silentError) {
+            console.log('Silent sign-in failed, user might not be signed in to Google:', silentError);
+            return null;
+        }
+        
         return await GoogleSignin.getTokens();
     } catch (error) {
         console.error('Error getting Google tokens:', error);

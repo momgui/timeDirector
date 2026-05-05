@@ -45,6 +45,8 @@ export interface Step {
     isHabit?: boolean;
     habitDaysOfWeek?: number[]; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
     currentStreak?: number;
+    targetStreak?: number; // Optional goal for habits
+    totalCompletions?: number; // Total number of days completed regardless of streak logic
     lastCompletedDate?: Date;
 }
 

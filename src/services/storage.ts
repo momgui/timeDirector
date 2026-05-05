@@ -100,6 +100,9 @@ export const pullFromSupabase = async () => {
                 isHabit: s.is_habit,
                 habitDaysOfWeek: s.habit_days_of_week,
                 currentStreak: s.current_streak,
+                targetStreak: s.target_streak,
+                totalCompletions: s.total_completions,
+                type: s.type,
                 lastCompletedDate: s.last_completed_date ? new Date(s.last_completed_date) : undefined,
             }));
             await AsyncStorage.setItem(STEPS_KEY, JSON.stringify(formattedSteps));

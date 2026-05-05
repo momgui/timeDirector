@@ -3,7 +3,7 @@ import { View, StyleSheet, KeyboardAvoidingView, Platform, TouchableWithoutFeedb
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Layout } from '../design-system/components/Layout';
-import { signUp, saveLoginState } from '../services/auth';
+import { signUp, saveLoginState, signInWithApple } from '../services/auth';
 import { pullFromSupabase, pushLocalDataToSupabase } from '../services/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Typography } from '../design-system/components/Typography';
@@ -61,6 +61,31 @@ export default function SignUpScreen() {
             }
         } catch (err: any) {
             setError(err.message || 'An error occurred during sign up');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAppleSignIn = async () => {
+        setLoading(true);
+        try {
+            const { data, error: appleError } = await signInWithApple();
+            if (appleError) {
+                const msg = appleError.message.toLowerCase();
+                if (msg.includes('already exists') || msg.includes('already registered')) {
+                    setError("Un compte existe déjà avec cet email. Connecte-toi d'abord avec ton email/mot de passe, puis lie ton compte Apple dans les Paramètres.");
+                } else {
+                    setError(appleError.message);
+                }
+            } else if (data && 'session' in data && data.session) {
+                await saveLoginState();
+                await pullFromSupabase();
+                await pushLocalDataToSupabase();
+                await auth.refresh();
+            }
+        } catch (error: any) {
+            console.error('Apple Sign in error:', error);
+            setError(error.message || 'Apple sign in error');
         } finally {
             setLoading(false);
         }
@@ -130,6 +155,15 @@ export default function SignUpScreen() {
                             loading={loading}
                             fullWidth
                             variant="primary"
+                        />
+
+                        <View style={{ height: SPACING.m }} />
+                        <Button
+                            title="Continue with Apple"
+                            onPress={handleAppleSignIn}
+                            loading={loading}
+                            variant="secondary"
+                            fullWidth
                         />
 
                         <View style={{ height: SPACING.l }} />

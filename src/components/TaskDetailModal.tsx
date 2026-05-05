@@ -170,7 +170,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                             {task.isHabit && (
                                 <View style={[styles.effortBadge, { backgroundColor: colors.primary }]}>
                                     <Typography variant="caption" color={colors.textInverse} weight="bold">
-                                        🔥 Habit {task.currentStreak ? `• Streak: ${task.currentStreak}` : ''}
+                                        🔥 Habit {task.currentStreak !== undefined ? `• Streak: ${task.currentStreak}` : ''}{task.targetStreak ? ` • Fait: ${task.totalCompletions || task.currentStreak || 0} / ${task.targetStreak}` : ''}
                                     </Typography>
                                 </View>
                             )}
