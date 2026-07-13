@@ -5,8 +5,8 @@ import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-const supabaseUrl = "https://xpglbyxjszpusclmpwut.supabase.co";
-const supabaseAnonKey = "***REMOVED***";
+const supabaseUrl = (Constants.expoConfig?.extra?.supabaseUrl as string) ?? '';
+const supabaseAnonKey = (Constants.expoConfig?.extra?.supabaseAnonKey as string) ?? '';
 
 console.log('[Supabase Config] URL:', supabaseUrl ? 'Set' : 'MISSING');
 console.log('[Supabase Config] Key:', supabaseAnonKey ? 'Set' : 'MISSING');
